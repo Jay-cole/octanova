@@ -33,19 +33,21 @@ def unread_match_count():
         return 0
     conn = get_db()
     if ptype == "student":
-        pid = conn.execute("SELECT id FROM students WHERE user_id=?", (uid,)).fetchone()
+        pid = conn.execute("SELECT id FROM students WHERE user_id=%s", (uid,)).fetchone()
         if not pid:
             conn.close(); return 0
-        count = conn.execute(
-            "SELECT COUNT(*) FROM matches WHERE student_id=? AND student_seen=0", (pid["id"],)
-        ).fetchone()[0]
+        row = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s AND student_seen=0", (pid["id"],)
+        ).fetchone()
+        count = row["cnt"] if row else 0
     else:
-        pid = conn.execute("SELECT id FROM startups WHERE user_id=?", (uid,)).fetchone()
+        pid = conn.execute("SELECT id FROM startups WHERE user_id=%s", (uid,)).fetchone()
         if not pid:
             conn.close(); return 0
-        count = conn.execute(
-            "SELECT COUNT(*) FROM matches WHERE startup_id=? AND startup_seen=0", (pid["id"],)
-        ).fetchone()[0]
+        row = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s AND startup_seen=0", (pid["id"],)
+        ).fetchone()
+        count = row["cnt"] if row else 0
     conn.close()
     return count
 
@@ -75,18 +77,18 @@ def register():
             return render_template("register.html")
 
         conn = get_db()
-        existing = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        existing = conn.execute("SELECT id FROM users WHERE email=%s", (email,)).fetchone()
         if existing:
             conn.close()
             flash("Email already registered.", "error")
             return render_template("register.html")
 
         conn.execute(
-            "INSERT INTO users (email, password, role, profile_type) VALUES (?, ?, 'user', ?)",
+            "INSERT INTO users (email, password, role, profile_type) VALUES (%s, %s, 'user', %s)",
             (email, hash_password(password), role)
         )
         conn.commit()
-        user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE email=%s", (email,)).fetchone()
         conn.close()
 
         session["user_id"]      = user["id"]
@@ -109,7 +111,7 @@ def login():
         email    = request.form["email"].strip().lower()
         password = request.form["password"]
         conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE email=%s", (email,)).fetchone()
         conn.close()
         if not user or not verify_password(password, user["password"]):
             flash("Invalid email or password.", "error")
@@ -137,14 +139,14 @@ def forgot_password():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
         conn  = get_db()
-        user  = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        user  = conn.execute("SELECT * FROM users WHERE email=%s", (email,)).fetchone()
 
         if user:
             import secrets, datetime
             token      = secrets.token_urlsafe(32)
             expires_at = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
             conn.execute(
-                "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
+                "INSERT INTO password_resets (user_id, token, expires_at) VALUES (%s, %s, %s)",
                 (user["id"], token, expires_at)
             )
             conn.commit()
@@ -166,7 +168,7 @@ def reset_password(token):
     import datetime
     conn  = get_db()
     reset = conn.execute(
-        "SELECT * FROM password_resets WHERE token=? AND used=0", (token,)
+        "SELECT * FROM password_resets WHERE token=%s AND used=0", (token,)
     ).fetchone()
 
     if not reset:
@@ -175,7 +177,9 @@ def reset_password(token):
         return redirect(url_for("forgot_password"))
 
     # Check expiry
-    expires_at = datetime.datetime.fromisoformat(reset["expires_at"])
+    expires_at = reset["expires_at"]
+    if isinstance(expires_at, str):
+        expires_at = datetime.datetime.fromisoformat(expires_at)
     if datetime.datetime.utcnow() > expires_at:
         conn.close()
         flash("This reset link has expired. Please request a new one.", "error")
@@ -195,9 +199,9 @@ def reset_password(token):
             flash("Passwords do not match.", "error")
             return render_template("reset_password.html", token=token)
 
-        conn.execute("UPDATE users SET password=? WHERE id=?",
+        conn.execute("UPDATE users SET password=%s WHERE id=%s",
                      (hash_password(password), reset["user_id"]))
-        conn.execute("UPDATE password_resets SET used=1 WHERE token=?", (token,))
+        conn.execute("UPDATE password_resets SET used=1 WHERE token=%s", (token,))
         conn.commit()
         conn.close()
         flash("Password updated! You can now log in.", "success")
@@ -219,17 +223,19 @@ def dashboard():
     match_count = 0
 
     if ptype == "student":
-        profile = conn.execute("SELECT * FROM students WHERE user_id=?", (uid,)).fetchone()
+        profile = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
         if profile:
-            match_count = conn.execute(
-                "SELECT COUNT(*) FROM matches WHERE student_id=?", (profile["id"],)
-            ).fetchone()[0]
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s", (profile["id"],)
+            ).fetchone()
+            match_count = row["cnt"] if row else 0
     elif ptype == "startup":
-        profile = conn.execute("SELECT * FROM startups WHERE user_id=?", (uid,)).fetchone()
+        profile = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
         if profile:
-            match_count = conn.execute(
-                "SELECT COUNT(*) FROM matches WHERE startup_id=?", (profile["id"],)
-            ).fetchone()[0]
+            row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s", (profile["id"],)
+            ).fetchone()
+            match_count = row["cnt"] if row else 0
 
     conn.close()
     return render_template("dashboard.html", profile=profile, ptype=ptype, match_count=match_count)
@@ -241,7 +247,7 @@ def dashboard():
 def student_profile():
     uid  = session["user_id"]
     conn = get_db()
-    existing = conn.execute("SELECT * FROM students WHERE user_id=?", (uid,)).fetchone()
+    existing = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
 
     if request.method == "POST":
         data = (
@@ -257,15 +263,15 @@ def student_profile():
         )
         if existing:
             conn.execute("""
-                UPDATE students SET name=?, email=?, whatsapp=?, skills=?, skill_level=?,
-                interests=?, wants=?, availability=? WHERE user_id=?
+                UPDATE students SET name=%s, email=%s, whatsapp=%s, skills=%s, skill_level=%s,
+                interests=%s, wants=%s, availability=%s WHERE user_id=%s
             """, data)
         else:
             conn.execute("""
                 INSERT INTO students (name, email, whatsapp, skills, skill_level, interests, wants, availability, user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, data)
-        conn.execute("UPDATE users SET profile_type='student' WHERE id=?", (uid,))
+        conn.execute("UPDATE users SET profile_type='student' WHERE id=%s", (uid,))
         conn.commit()
         conn.close()
         session["profile_type"] = "student"
@@ -283,7 +289,7 @@ def student_profile():
 def startup_profile():
     uid  = session["user_id"]
     conn = get_db()
-    existing = conn.execute("SELECT * FROM startups WHERE user_id=?", (uid,)).fetchone()
+    existing = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
 
     if request.method == "POST":
         data = (
@@ -299,15 +305,15 @@ def startup_profile():
         )
         if existing:
             conn.execute("""
-                UPDATE startups SET startup_name=?, email=?, whatsapp=?, skills_needed=?, industry=?,
-                offers=?, commitment=?, remote_physical=? WHERE user_id=?
+                UPDATE startups SET startup_name=%s, email=%s, whatsapp=%s, skills_needed=%s, industry=%s,
+                offers=%s, commitment=%s, remote_physical=%s WHERE user_id=%s
             """, data)
         else:
             conn.execute("""
                 INSERT INTO startups (startup_name, email, whatsapp, skills_needed, industry, offers, commitment, remote_physical, user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, data)
-        conn.execute("UPDATE users SET profile_type='startup' WHERE id=?", (uid,))
+        conn.execute("UPDATE users SET profile_type='startup' WHERE id=%s", (uid,))
         conn.commit()
         conn.close()
         session["profile_type"] = "startup"
@@ -333,15 +339,15 @@ def matches():
         if not number:
             return None
         clean = number.replace("+", "").replace(" ", "").replace("-", "")
-        return f"https://wa.me/{clean}?text={quote(message, safe='')}"
+        return f"https://wa.me/{clean}%stext={quote(message, safe='')}"
 
     def email_url(address, subject, body):
         if not address:
             return None
-        return f"mailto:{address}?subject={quote(subject, safe='')}&body={quote(body, safe='')}"
+        return f"mailto:{address}%ssubject={quote(subject, safe='')}&body={quote(body, safe='')}"
 
     if ptype == "student":
-        profile = conn.execute("SELECT * FROM students WHERE user_id=?", (uid,)).fetchone()
+        profile = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
         if not profile:
             conn.close()
             flash("Complete your profile first.", "error")
@@ -352,10 +358,10 @@ def matches():
                    s.startup_name, s.industry, s.offers, s.commitment, s.remote_physical,
                    s.email AS match_email, s.whatsapp AS match_whatsapp
             FROM matches m JOIN startups s ON m.startup_id = s.id
-            WHERE m.student_id = ?
+            WHERE m.student_id = %s
             ORDER BY m.score DESC
         """, (profile["id"],)).fetchall()
-        conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=?", (profile["id"],))
+        conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
         conn.commit()
         conn.close()
 
@@ -387,7 +393,7 @@ def matches():
             rows.append(m)
 
     else:
-        profile = conn.execute("SELECT * FROM startups WHERE user_id=?", (uid,)).fetchone()
+        profile = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
         if not profile:
             conn.close()
             flash("Complete your profile first.", "error")
@@ -398,10 +404,10 @@ def matches():
                    st.name, st.skills, st.interests, st.availability,
                    st.email AS match_email, st.whatsapp AS match_whatsapp
             FROM matches m JOIN students st ON m.student_id = st.id
-            WHERE m.startup_id = ?
+            WHERE m.startup_id = %s
             ORDER BY m.score DESC
         """, (profile["id"],)).fetchall()
-        conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=?", (profile["id"],))
+        conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
         conn.close()
 
@@ -441,9 +447,9 @@ def accept_match(match_id):
     ptype = session.get("profile_type")
     conn  = get_db()
     if ptype == "student":
-        conn.execute("UPDATE matches SET student_accepted=1 WHERE id=?", (match_id,))
+        conn.execute("UPDATE matches SET student_accepted=1 WHERE id=%s", (match_id,))
     else:
-        conn.execute("UPDATE matches SET startup_accepted=1 WHERE id=?", (match_id,))
+        conn.execute("UPDATE matches SET startup_accepted=1 WHERE id=%s", (match_id,))
     conn.commit()
     conn.close()
     flash("Match accepted!", "success")
@@ -475,12 +481,12 @@ def manual_match():
     startup_id = request.form["startup_id"]
     conn = get_db()
     existing = conn.execute(
-        "SELECT id FROM matches WHERE student_id=? AND startup_id=?",
+        "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
         (student_id, startup_id)
     ).fetchone()
     if not existing:
         conn.execute(
-            "INSERT INTO matches (student_id, startup_id, score) VALUES (?, ?, 100)",
+            "INSERT INTO matches (student_id, startup_id, score) VALUES (%s, %s, 100)",
             (student_id, startup_id)
         )
         conn.commit()
@@ -517,3 +523,4 @@ with app.app_context():
 
 if __name__ == "__main__":
     app.run(debug=os.environ.get("FLASK_ENV") != "production")
+

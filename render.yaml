@@ -17,6 +17,16 @@ services:
         value: libsql://octanova-jay-cole.aws-us-west-2.turso.io
       - key: TURSO_DB_TOKEN
         sync: false
+      - key: MYSQL_HOST
+        value: caboose.proxy.rlwy.net
+      - key: MYSQL_PORT
+        value: "22081"
+      - key: MYSQL_USER
+        value: root
+      - key: MYSQL_DATABASE
+        value: railway
+      - key: MYSQL_PASSWORD
+        sync: false
       - key: TURSO_URL
         value: libsql://octanova-jay-cole.aws-us-west-2.turso.io
       - key: TURSO_TOKEN
