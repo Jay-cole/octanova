@@ -490,6 +490,27 @@ def manual_match():
     conn.close()
     return redirect(url_for("admin"))
 
+@app.route("/admin/test_email")
+@admin_required
+def test_email():
+    from mailer import send_match_email
+    send_match_email(
+        to_email=session["email"],
+        to_name="Test User",
+        match_type="startup",
+        match_name="Test Startup",
+        industry="AI",
+        offers="mentorship",
+        commitment="10",
+        mode="remote",
+        matched_skills="python",
+        matched_interests="ai",
+        matched_wants="mentorship",
+        score=80,
+    )
+    flash(f"Test email fired to {session['email']} — check Render logs.", "success")
+    return redirect(url_for("admin"))
+
 # Always initialize DB — runs on import, works with gunicorn and python app.py
 with app.app_context():
     init_db()
