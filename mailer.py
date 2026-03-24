@@ -19,10 +19,14 @@ from email.mime.text import MIMEText
 
 SMTP_HOST  = os.environ.get("OCTANOVA_SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT  = int(os.environ.get("OCTANOVA_SMTP_PORT", 587))
-SMTP_USER  = os.environ.get("OCTANOVA_SMTP_USER", "")
-SMTP_PASS  = os.environ.get("OCTANOVA_SMTP_PASS", "")
-FROM_EMAIL = os.environ.get("OCTANOVA_FROM_EMAIL", SMTP_USER)
-SITE_URL   = os.environ.get("OCTANOVA_SITE_URL", "https://octanova.onrender.com")
+
+def _cfg():
+    """Read credentials fresh each call so env vars set after import are picked up."""
+    user = os.environ.get("OCTANOVA_SMTP_USER", "")
+    pw   = os.environ.get("OCTANOVA_SMTP_PASS", "")
+    frm  = os.environ.get("OCTANOVA_FROM_EMAIL", user)
+    url  = os.environ.get("OCTANOVA_SITE_URL", "https://octanova.onrender.com")
+    return user, pw, frm, url
 
 
 def send_match_email(
@@ -31,6 +35,7 @@ def send_match_email(
     matched_skills, matched_interests, matched_wants, score
 ):
     """Send a match notification email. Silently skips if SMTP is not configured."""
+    SMTP_USER, SMTP_PASS, FROM_EMAIL, SITE_URL = _cfg()
     if not SMTP_USER or not SMTP_PASS:
         print(f"[mailer] SMTP not configured — skipping email to {to_email}")
         return
@@ -148,6 +153,7 @@ def send_match_email(
 
 def send_reset_email(to_email, reset_url):
     """Send a password reset email."""
+    SMTP_USER, SMTP_PASS, FROM_EMAIL, _ = _cfg()
     if not SMTP_USER or not SMTP_PASS:
         print(f"[mailer] SMTP not configured — reset link: {reset_url}")
         return
