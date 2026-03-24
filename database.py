@@ -25,6 +25,20 @@ def verify_password(password, stored):
 def init_db():
     conn = get_db()
     c = conn.cursor()
+
+    # Check if schema is current — if students table lacks 'email' column, wipe and rebuild
+    try:
+        c.execute("SELECT email FROM students LIMIT 1")
+    except Exception:
+        print("[db] Schema outdated — recreating tables...")
+        c.executescript("""
+            DROP TABLE IF EXISTS matches;
+            DROP TABLE IF EXISTS students;
+            DROP TABLE IF EXISTS startups;
+            DROP TABLE IF EXISTS password_resets;
+        """)
+        conn.commit()
+
     c.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
