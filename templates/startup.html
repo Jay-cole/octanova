@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Startup Profile – OctaNova</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% include "nav.html" %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">{% for c, m in messages %}<div class="flash {{ c }}">{{ m }}</div>{% endfor %}</div>
+  {% endwith %}
+
+  <div class="form-page">
+    <div class="form-wrap">
+      <h2>{{ "Edit" if profile else "Complete" }} Startup Profile</h2>
+      <p class="form-sub">This info is used for matching and shown to students when you connect.</p>
+      <form method="POST">
+
+        <div class="section-label">Startup Info</div>
+        <div class="field">
+          <label>Startup Name</label>
+          <input type="text" name="startup_name" value="{{ profile.startup_name if profile else '' }}" placeholder="Your startup's name" required>
+        </div>
+        <div class="field">
+          <label>Contact Email <span class="hint">(shown to students on match)</span></label>
+          <div class="input-icon">
+            <span class="icon">✉</span>
+            <input type="email" name="email" value="{{ profile.email if profile else '' }}" placeholder="hello@startup.com" required>
+          </div>
+        </div>
+        <div class="field">
+          <label>WhatsApp Number <span class="hint">(optional, shown on match)</span></label>
+          <div class="input-icon">
+            <span class="icon">📱</span>
+            <input type="tel" name="whatsapp" value="{{ profile.whatsapp if profile else '' }}" placeholder="+1 234 567 8900">
+          </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <div class="section-label">What You Need</div>
+        <div class="field">
+          <label>Skills Needed <span class="hint">(comma-separated)</span></label>
+          <input type="text" name="skills_needed" value="{{ profile.skills_needed if profile else '' }}" placeholder="e.g. Python, UI design, marketing" required>
+        </div>
+        <div class="field">
+          <label>Industry <span class="hint">(comma-separated)</span></label>
+          <input type="text" name="industry" value="{{ profile.industry if profile else '' }}" placeholder="e.g. fintech, AI, health" required>
+        </div>
+
+        <div class="form-divider"></div>
+        <div class="section-label">What You Offer</div>
+        <div class="field">
+          <div class="checkbox-group">
+            {% set current_offers = profile.offers.split(", ") if profile else [] %}
+            {% for opt in ["experience", "mentorship", "money", "equity"] %}
+              <label>
+                <input type="checkbox" name="offers" value="{{ opt }}" {{ "checked" if opt in current_offers }}>
+                {{ opt | capitalize }}
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field">
+          <label>Commitment <span class="hint">(hours per week)</span></label>
+          <input type="number" name="commitment" value="{{ profile.commitment if profile else '' }}" min="1" max="60" placeholder="e.g. 15" required>
+        </div>
+        <div class="field">
+          <label>Work Mode</label>
+          <select name="remote_physical" required>
+            <option value="">Select mode</option>
+            {% for mode in ["remote", "physical", "hybrid"] %}
+              <option value="{{ mode }}" {{ "selected" if profile and profile.remote_physical == mode }}>
+                {{ mode | capitalize }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px">
+          Save Profile →
+        </button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

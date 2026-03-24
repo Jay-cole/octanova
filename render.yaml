@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: octanova
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: OCTANOVA_SMTP_USER
+        sync: false
+      - key: OCTANOVA_SMTP_PASS
+        sync: false
+      - key: FLASK_SECRET_KEY
+        generateValue: true

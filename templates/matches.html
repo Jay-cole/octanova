@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Matches – OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c, m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="page">
+      <div class="page-header">
+        <h2>Your Matches</h2>
+        <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+      </div>
+
+      {% if not matches %}
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <p>
+          No matches yet. They appear automatically when a compatible profile
+          joins.
+        </p>
+        <a href="/dashboard" class="btn btn-ghost btn-sm">Back to Dashboard</a>
+      </div>
+      {% endif %} {% for m in matches %}
+      <div class="card">
+        <div class="card-info" style="flex: 1; min-width: 0">
+          {% if user_type == "student" %}
+          <h3>🚀 {{ m["startup_name"] }}</h3>
+          <p>Industry: {{ m["industry"] }}</p>
+          <p>Offers: {{ m["offers"] }}</p>
+          <p>
+            {{ m["commitment"] }} hrs/week &nbsp;·&nbsp; {{ m["remote_physical"]
+            | capitalize }}
+          </p>
+          {% else %}
+          <h3>🎓 {{ m["name"] }}</h3>
+          <p>Skills: {{ m["skills"] }}</p>
+          <p>Interests: {{ m["interests"] }}</p>
+          <p>{{ m["availability"] }} hrs/week availability</p>
+          {% endif %}
+
+          <div class="match-reason">
+            <p>Why you matched</p>
+            <ul>
+              {% if m["matched_skills"] %}
+              <li>Skills in <strong>{{ m["matched_skills"] }}</strong></li>
+              {% endif %} {% if m["matched_interests"] %}
+              <li>Interest in <strong>{{ m["matched_interests"] }}</strong></li>
+              {% endif %} {% if m["matched_wants"] %} {% if user_type ==
+              "student" %}
+              <li>
+                This startup offers <strong>{{ m["matched_wants"] }}</strong> —
+                what you want
+              </li>
+              {% else %}
+              <li>
+                This student wants <strong>{{ m["matched_wants"] }}</strong> —
+                what you offer
+              </li>
+              {% endif %} {% endif %}
+            </ul>
+          </div>
+
+          {% if m["student_accepted"] and m["startup_accepted"] %} {% set
+          other_name = m["startup_name"] if user_type == "student" else
+          m["name"] %}
+          <div class="contact-reveal">
+            <div class="contact-reveal-header">
+              ✓ Connected — contact details for {{ other_name }}
+            </div>
+            <div class="contact-details">
+              {% if m["match_email"] %}
+              <div class="contact-detail-item">
+                <span class="contact-detail-label">✉ Email</span>
+                <span class="contact-detail-value">{{ m["match_email"] }}</span>
+              </div>
+              {% endif %} {% if m["match_whatsapp"] %}
+              <div class="contact-detail-item">
+                <span class="contact-detail-label">📱 WhatsApp</span>
+                <span class="contact-detail-value"
+                  >{{ m["match_whatsapp"] }}</span
+                >
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% elif (user_type == "student" and m["student_accepted"]) or
+          (user_type == "startup" and m["startup_accepted"]) %}
+          <p style="font-size: 0.82rem; color: var(--yellow); margin-top: 10px">
+            ⏳ Waiting for the other side to accept...
+          </p>
+          {% endif %}
+        </div>
+
+        <div class="card-actions">
+          <div class="score-ring" title="Match score">{{ m["score"] }}%</div>
+          {% if m["student_accepted"] and m["startup_accepted"] %}
+          <span class="badge badge-green">✓ Connected</span>
+          {% elif (user_type == "student" and not m["student_accepted"]) or
+          (user_type == "startup" and not m["startup_accepted"]) %}
+          <form method="POST" action="/accept/{{ m['id'] }}">
+            <button class="btn btn-success btn-sm">Accept</button>
+          </form>
+          <span class="badge badge-purple">New</span>
+          {% else %}
+          <span class="badge badge-yellow">Pending</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </body>
+</html>

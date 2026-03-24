@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin – OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c, m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="admin-wrap">
+      <h1>Admin Dashboard</h1>
+      <p
+        style="color: var(--text-dim); margin-bottom: 24px; font-size: 0.88rem"
+      >
+        OctaNova platform overview
+      </p>
+
+      <!-- Stats -->
+      <div class="admin-stats">
+        <div class="stat-card">
+          <div class="stat-num">{{ students|length }}</div>
+          <div class="stat-label">Students</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">{{ startups|length }}</div>
+          <div class="stat-label">Startups</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">{{ matches|length }}</div>
+          <div class="stat-label">Matches</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">
+            {{ matches | selectattr('student_accepted') |
+            selectattr('startup_accepted') | list | length }}
+          </div>
+          <div class="stat-label">Connected</div>
+        </div>
+      </div>
+
+      <!-- Manual Match -->
+      <div class="manual-match">
+        <h3>Manual Match</h3>
+        <form method="POST" action="/admin/manual_match">
+          <select name="student_id" required>
+            <option value="">Select student...</option>
+            {% for s in students %}
+            <option value="{{ s['id'] }}">{{ s['name'] }}</option>
+            {% endfor %}
+          </select>
+          <select name="startup_id" required>
+            <option value="">Select startup...</option>
+            {% for s in startups %}
+            <option value="{{ s['id'] }}">{{ s['startup_name'] }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">
+            Create Match
+          </button>
+        </form>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('tab-students', this)">
+          Students ({{ students|length }})
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-startups', this)">
+          Startups ({{ startups|length }})
+        </button>
+        <button class="tab-btn" onclick="showTab('tab-matches', this)">
+          Matches ({{ matches|length }})
+        </button>
+      </div>
+
+      <!-- Students -->
+      <div id="tab-students" class="tab-content active">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>WhatsApp</th>
+              <th>Skills</th>
+              <th>Level</th>
+              <th>Interests</th>
+              <th>Wants</th>
+              <th>Hrs/wk</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in students %}
+            <tr>
+              <td style="color: var(--text)">{{ s['name'] }}</td>
+              <td><a href="mailto:{{ s['email'] }}">{{ s['email'] }}</a></td>
+              <td>{{ s['whatsapp'] or '—' }}</td>
+              <td>{{ s['skills'] }}</td>
+              <td>{{ s['skill_level'] | capitalize }}</td>
+              <td>{{ s['interests'] }}</td>
+              <td>{{ s['wants'] }}</td>
+              <td>{{ s['availability'] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td
+                colspan="8"
+                style="
+                  text-align: center;
+                  color: var(--text-dim);
+                  padding: 32px;
+                "
+              >
+                No students yet
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Startups -->
+      <div id="tab-startups" class="tab-content">
+        <table>
+          <thead>
+            <tr>
+              <th>Startup</th>
+              <th>Email</th>
+              <th>WhatsApp</th>
+              <th>Skills Needed</th>
+              <th>Industry</th>
+              <th>Offers</th>
+              <th>Hrs/wk</th>
+              <th>Mode</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in startups %}
+            <tr>
+              <td style="color: var(--text)">{{ s['startup_name'] }}</td>
+              <td><a href="mailto:{{ s['email'] }}">{{ s['email'] }}</a></td>
+              <td>{{ s['whatsapp'] or '—' }}</td>
+              <td>{{ s['skills_needed'] }}</td>
+              <td>{{ s['industry'] }}</td>
+              <td>{{ s['offers'] }}</td>
+              <td>{{ s['commitment'] }}</td>
+              <td>{{ s['remote_physical'] | capitalize }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td
+                colspan="8"
+                style="
+                  text-align: center;
+                  color: var(--text-dim);
+                  padding: 32px;
+                "
+              >
+                No startups yet
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Matches -->
+      <div id="tab-matches" class="tab-content">
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Startup</th>
+              <th>Score</th>
+              <th>Student ✓</th>
+              <th>Startup ✓</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in matches %}
+            <tr>
+              <td style="color: var(--text)">{{ m['student_name'] }}</td>
+              <td style="color: var(--text)">{{ m['startup_name'] }}</td>
+              <td>
+                <strong style="color: var(--accent)">{{ m['score'] }}%</strong>
+              </td>
+              <td>{{ '✓' if m['student_accepted'] else '—' }}</td>
+              <td>{{ '✓' if m['startup_accepted'] else '—' }}</td>
+              <td>
+                {% if m['student_accepted'] and m['startup_accepted'] %}
+                <span class="badge badge-green">Connected</span>
+                {% elif m['student_accepted'] or m['startup_accepted'] %}
+                <span class="badge badge-yellow">Pending</span>
+                {% else %}
+                <span class="badge badge-gray">New</span>
+                {% endif %}
+              </td>
+              <td>{{ m['created_at'][:10] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td
+                colspan="7"
+                style="
+                  text-align: center;
+                  color: var(--text-dim);
+                  padding: 32px;
+                "
+              >
+                No matches yet
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      function showTab(id, btn) {
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((b) => b.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+        btn.classList.add("active");
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard – OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c, m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="page">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        {% if profile %} {% if ptype == "student" %}
+        <a href="/profile/student" class="btn btn-ghost btn-sm">Edit Profile</a>
+        {% else %}
+        <a href="/profile/startup" class="btn btn-ghost btn-sm">Edit Profile</a>
+        {% endif %} {% endif %}
+      </div>
+
+      {% if not profile %}
+      <!-- No profile yet -->
+      <div class="empty-state">
+        <div class="empty-icon">👤</div>
+        <p>
+          You haven't set up your profile yet.<br />Complete it to start getting
+          matched.
+        </p>
+        {% if ptype == "student" %}
+        <a href="/profile/student" class="btn btn-primary"
+          >Complete Student Profile →</a
+        >
+        {% else %}
+        <a href="/profile/startup" class="btn btn-primary"
+          >Complete Startup Profile →</a
+        >
+        {% endif %}
+      </div>
+
+      {% else %}
+
+      <!-- Notification banner -->
+      {% if unread_count > 0 %}
+      <div class="notif-banner">
+        <span
+          ><span class="notif-dot"></span>You have
+          <strong
+            >{{ unread_count }} new match{{ 'es' if unread_count > 1 }}</strong
+          >
+          waiting for you</span
+        >
+        <a href="/matches" class="btn btn-primary btn-sm">View Matches →</a>
+      </div>
+      {% endif %}
+
+      <!-- Profile card -->
+      <div class="profile-card">
+        {% if ptype == "student" %}
+        <h3>🎓 {{ profile["name"] }}</h3>
+        <div class="profile-grid">
+          <div class="profile-item">
+            <label>Email</label>
+            <span>{{ profile["email"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>WhatsApp</label>
+            <span>{{ profile["whatsapp"] or "—" }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Skills</label>
+            <span>{{ profile["skills"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Level</label>
+            <span>{{ profile["skill_level"] | capitalize }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Interests</label>
+            <span>{{ profile["interests"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Looking for</label>
+            <span>{{ profile["wants"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Availability</label>
+            <span>{{ profile["availability"] }} hrs/week</span>
+          </div>
+        </div>
+        {% else %}
+        <h3>🚀 {{ profile["startup_name"] }}</h3>
+        <div class="profile-grid">
+          <div class="profile-item">
+            <label>Email</label>
+            <span>{{ profile["email"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>WhatsApp</label>
+            <span>{{ profile["whatsapp"] or "—" }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Industry</label>
+            <span>{{ profile["industry"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Skills Needed</label>
+            <span>{{ profile["skills_needed"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Offers</label>
+            <span>{{ profile["offers"] }}</span>
+          </div>
+          <div class="profile-item">
+            <label>Commitment</label>
+            <span
+              >{{ profile["commitment"] }} hrs/week · {{
+              profile["remote_physical"] | capitalize }}</span
+            >
+          </div>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+          <a href="/matches" class="btn btn-primary btn-sm">
+            View Matches {% if match_count > 0 %}<span class="badge-count"
+              >{{ match_count }}</span
+            >{% endif %}
+          </a>
+          {% if ptype == "student" %}
+          <a href="/profile/student" class="btn btn-ghost btn-sm"
+            >Edit Profile</a
+          >
+          {% else %}
+          <a href="/profile/startup" class="btn btn-ghost btn-sm"
+            >Edit Profile</a
+          >
+          {% endif %}
+        </div>
+      </div>
+
+      {% endif %}
+    </div>
+  </body>
+</html>

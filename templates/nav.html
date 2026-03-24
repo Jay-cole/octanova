@@ -1,0 +1,21 @@
+<nav>
+  <a class="logo" href="/">⬡ OctaNova</a>
+  {% if session.get("user_id") %}
+  <a href="/dashboard">Dashboard</a>
+  <a href="/matches" style="position: relative">
+    Matches {% if unread_count > 0 %}<span class="nav-badge"
+      >{{ unread_count }}</span
+    >{% endif %}
+  </a>
+  {% if session.get("role") == "admin" %}<a href="/admin">Admin</a>{% endif %}
+  <div class="nav-right">
+    <span class="nav-email">{{ session.get("email") }}</span>
+    <a href="/logout" class="nav-logout">Logout</a>
+  </div>
+  {% else %}
+  <div class="nav-right">
+    <a href="/login">Login</a>
+    <a href="/register" class="btn btn-primary btn-sm">Register</a>
+  </div>
+  {% endif %}
+</nav>

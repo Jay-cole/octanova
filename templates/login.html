@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login – OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c, m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="form-page">
+      <div class="form-wrap">
+        <h2>Welcome back</h2>
+        <p class="form-sub">Log in to your OctaNova account</p>
+        <form method="POST">
+          <div class="field">
+            <label>Email</label>
+            <div class="input-icon">
+              <span class="icon">✉</span>
+              <input
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                required
+                autofocus
+              />
+            </div>
+          </div>
+          <div class="field">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 6px;
+              "
+            >
+              <label style="margin: 0">Password</label>
+              <a
+                href="/forgot-password"
+                style="font-size: 0.8rem; color: var(--text-dim)"
+                >Forgot password?</a
+              >
+            </div>
+            <div class="pw-wrap">
+              <input
+                type="password"
+                name="password"
+                id="pw-login"
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                class="pw-toggle"
+                onclick="togglePw('pw-login', this)"
+                aria-label="Show password"
+              >
+                👁
+              </button>
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            style="width: 100%; justify-content: center; margin-top: 8px"
+          >
+            Log In →
+          </button>
+        </form>
+        <div class="form-divider"></div>
+        <p
+          style="text-align: center; font-size: 0.88rem; color: var(--text-dim)"
+        >
+          No account? <a href="/register">Create one free</a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      function togglePw(id, btn) {
+        const input = document.getElementById(id);
+        const show = input.type === "password";
+        input.type = show ? "text" : "password";
+        btn.textContent = show ? "🙈" : "👁";
+        btn.style.opacity = show ? "1" : "0.5";
+      }
+    </script>
+  </body>
+</html>
