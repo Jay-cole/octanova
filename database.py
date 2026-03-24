@@ -1,15 +1,96 @@
-import sqlite3
+import libsql_experimental as libsql
 import hashlib
 import os
 
-# On Render, use /data for persistence. Locally use current dir.
-_data_dir = "/data" if os.path.isdir("/data") else os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(_data_dir, "octanova.db")
+TURSO_URL   = os.environ.get("TURSO_URL", "")
+TURSO_TOKEN = os.environ.get("TURSO_TOKEN", "")
+
+
+class DictRow:
+    """Wraps a libsql row so columns can be accessed by name like sqlite3.Row."""
+    def __init__(self, cursor, row):
+        self._data = {desc[0]: val for desc, val in zip(cursor.description, row)}
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def keys(self):
+        return self._data.keys()
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+
+class DictCursor:
+    """Wraps libsql cursor to return DictRow objects."""
+    def __init__(self, cursor):
+        self._cur = cursor
+
+    @property
+    def description(self):
+        return self._cur.description
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    def execute(self, sql, params=()):
+        self._cur.execute(sql, params)
+        return self
+
+    def executescript(self, sql):
+        # libsql doesn't support executescript — split and run individually
+        for stmt in sql.strip().split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                self._cur.execute(stmt)
+        return self
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        if row is None:
+            return None
+        return DictRow(self._cur, row)
+
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        return [DictRow(self._cur, r) for r in rows]
+
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
+
+class DictConnection:
+    """Wraps libsql connection to return DictCursor objects."""
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self):
+        return DictCursor(self._conn.cursor())
+
+    def execute(self, sql, params=()):
+        cur = DictCursor(self._conn.cursor())
+        cur.execute(sql, params)
+        return cur
+
+    def executescript(self, sql):
+        cur = DictCursor(self._conn.cursor())
+        cur.executescript(sql)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
 
 def get_db():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    return conn
+    conn = libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
+    return DictConnection(conn)
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -25,19 +106,6 @@ def verify_password(password, stored):
 def init_db():
     conn = get_db()
     c = conn.cursor()
-
-    # Check if schema is current — if students table lacks 'email' column, wipe and rebuild
-    try:
-        c.execute("SELECT email FROM students LIMIT 1")
-    except Exception:
-        print("[db] Schema outdated — recreating tables...")
-        c.executescript("""
-            DROP TABLE IF EXISTS matches;
-            DROP TABLE IF EXISTS students;
-            DROP TABLE IF EXISTS startups;
-            DROP TABLE IF EXISTS password_resets;
-        """)
-        conn.commit()
 
     c.executescript("""
         CREATE TABLE IF NOT EXISTS users (

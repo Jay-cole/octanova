@@ -3,7 +3,7 @@ services:
     name: octanova
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: OCTANOVA_SMTP_USER
         sync: false
@@ -13,3 +13,7 @@ services:
         generateValue: true
       - key: OCTANOVA_SITE_URL
         value: https://octanova.onrender.com
+      - key: TURSO_URL
+        value: libsql://octanova-jay-cole.aws-us-west-2.turso.io
+      - key: TURSO_TOKEN
+        sync: false
