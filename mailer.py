@@ -36,6 +36,7 @@ def send_match_email(
 ):
     """Send a match notification email. Silently skips if SMTP is not configured."""
     SMTP_USER, SMTP_PASS, FROM_EMAIL, SITE_URL = _cfg()
+    print(f"[mailer] send_match_email called → to={to_email} smtp_user_set={bool(SMTP_USER)} smtp_pass_set={bool(SMTP_PASS)}")
     if not SMTP_USER or not SMTP_PASS:
         print(f"[mailer] SMTP not configured — skipping email to {to_email}")
         return
@@ -141,14 +142,15 @@ def send_match_email(
     msg.attach(MIMEText(html, "html"))
 
     try:
+        print(f"[mailer] Connecting to {SMTP_HOST}:{SMTP_PORT} as {SMTP_USER}...")
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.ehlo()
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        print(f"[mailer] Email sent to {to_email}")
+        print(f"[mailer] ✓ Email sent to {to_email}")
     except Exception as e:
-        print(f"[mailer] Failed to send to {to_email}: {e}")
+        print(f"[mailer] ✗ Failed to send to {to_email}: {type(e).__name__}: {e}")
 
 
 def send_reset_email(to_email, reset_url):
