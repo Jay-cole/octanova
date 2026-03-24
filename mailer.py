@@ -1,60 +1,42 @@
 """
-Email notifications via Resend (https://resend.com).
+Email notifications via Resend SDK (https://resend.com).
 
 Set the following environment variable on Render:
-  RESEND_API_KEY  — your Resend API key
-
-Optional:
-  OCTANOVA_FROM_EMAIL  — sender address (must be verified on Resend)
-                         defaults to onboarding@resend.dev (works for testing)
+  RESEND_API_KEY       — your Resend API key
+  OCTANOVA_FROM_EMAIL  — sender (must be verified domain on Resend)
+                         defaults to onboarding@resend.dev (test only)
   OCTANOVA_SITE_URL    — defaults to https://octanova.onrender.com
 """
 
 import os
-import json
-import urllib.request
-import urllib.error
 import threading
 
 
 def _cfg():
     return {
-        "api_key":   os.environ.get("RESEND_API_KEY", ""),
+        "api_key":    os.environ.get("RESEND_API_KEY", ""),
         "from_email": os.environ.get("OCTANOVA_FROM_EMAIL", "OctaNova <onboarding@resend.dev>"),
-        "site_url":  os.environ.get("OCTANOVA_SITE_URL", "https://octanova.onrender.com"),
+        "site_url":   os.environ.get("OCTANOVA_SITE_URL", "https://octanova.onrender.com"),
     }
 
 
 def _send_via_resend(to_email, subject, html):
-    """Send an email using Resend's HTTPS API in a background thread."""
     cfg = _cfg()
     if not cfg["api_key"]:
         print(f"[mailer] RESEND_API_KEY not set — skipping email to {to_email}")
         return
 
     def _send():
-        payload = json.dumps({
-            "from":    cfg["from_email"],
-            "to":      [to_email],
-            "subject": subject,
-            "html":    html,
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {cfg['api_key']}",
-                "Content-Type":  "application/json",
-            },
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                print(f"[mailer] ✓ Email sent to {to_email} (status {resp.status})")
-        except urllib.error.HTTPError as e:
-            body = e.read().decode()
-            print(f"[mailer] ✗ Resend HTTP {e.code} for {to_email}: {body}")
+            import resend
+            resend.api_key = cfg["api_key"]
+            resend.Emails.send({
+                "from":    cfg["from_email"],
+                "to":      [to_email],
+                "subject": subject,
+                "html":    html,
+            })
+            print(f"[mailer] ✓ Email sent to {to_email}")
         except Exception as e:
             print(f"[mailer] ✗ Failed to send to {to_email}: {type(e).__name__}: {e}")
 
