@@ -490,6 +490,9 @@ def manual_match():
     conn.close()
     return redirect(url_for("admin"))
 
-if __name__ == "__main__":
+# Always initialize DB — runs on import, works with gunicorn and python app.py
+with app.app_context():
     init_db()
+
+if __name__ == "__main__":
     app.run(debug=os.environ.get("FLASK_ENV") != "production")
