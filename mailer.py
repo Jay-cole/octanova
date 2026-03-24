@@ -14,6 +14,7 @@ To get a Gmail App Password:
 
 import os
 import smtplib
+import threading
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -141,16 +142,19 @@ def send_match_email(
     msg["To"]      = to_email
     msg.attach(MIMEText(html, "html"))
 
-    try:
-        print(f"[mailer] Connecting to {SMTP_HOST}:{SMTP_PORT} as {SMTP_USER}...")
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        print(f"[mailer] ✓ Email sent to {to_email}")
-    except Exception as e:
-        print(f"[mailer] ✗ Failed to send to {to_email}: {type(e).__name__}: {e}")
+    def _send():
+        try:
+            print(f"[mailer] Connecting to {SMTP_HOST}:{SMTP_PORT} as {SMTP_USER}...")
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+            print(f"[mailer] ✓ Email sent to {to_email}")
+        except Exception as e:
+            print(f"[mailer] ✗ Failed to send to {to_email}: {type(e).__name__}: {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
 
 
 def send_reset_email(to_email, reset_url):
@@ -201,12 +205,15 @@ def send_reset_email(to_email, reset_url):
     msg["To"]      = to_email
     msg.attach(MIMEText(html, "html"))
 
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        print(f"[mailer] Reset email sent to {to_email}")
-    except Exception as e:
-        print(f"[mailer] Failed to send reset email to {to_email}: {e}")
+    def _send():
+        try:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+            print(f"[mailer] ✓ Reset email sent to {to_email}")
+        except Exception as e:
+            print(f"[mailer] ✗ Failed to send reset email to {to_email}: {type(e).__name__}: {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
