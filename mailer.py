@@ -30,6 +30,7 @@ def _send_via_resend(to_email, subject, html):
         try:
             import resend
             resend.api_key = cfg["api_key"]
+            print(f"[mailer] Using API key: {cfg['api_key'][:12]}...")
             resend.Emails.send({
                 "from":    cfg["from_email"],
                 "to":      [to_email],
