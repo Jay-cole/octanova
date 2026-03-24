@@ -22,6 +22,7 @@ SMTP_PORT  = int(os.environ.get("OCTANOVA_SMTP_PORT", 587))
 SMTP_USER  = os.environ.get("OCTANOVA_SMTP_USER", "")
 SMTP_PASS  = os.environ.get("OCTANOVA_SMTP_PASS", "")
 FROM_EMAIL = os.environ.get("OCTANOVA_FROM_EMAIL", SMTP_USER)
+SITE_URL   = os.environ.get("OCTANOVA_SITE_URL", "https://octanova.onrender.com")
 
 
 def send_match_email(
@@ -109,7 +110,7 @@ def send_match_email(
 
           <!-- CTA -->
           <div style="text-align:center">
-            <a href="http://127.0.0.1:5000/matches"
+            <a href="{SITE_URL}/matches"
                style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);
                       color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;
                       font-weight:600;font-size:.95rem">

@@ -11,3 +11,5 @@ services:
         sync: false
       - key: FLASK_SECRET_KEY
         generateValue: true
+      - key: OCTANOVA_SITE_URL
+        value: https://octanova.onrender.com
