@@ -517,6 +517,21 @@ def test_email():
     flash(f"Test email fired to {session['email']} — check Render logs.", "success")
     return redirect(url_for("admin"))
 
+@app.route("/setup-admin")
+def setup_admin():
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
+    if existing:
+        conn.close()
+        return "Admin already exists.", 200
+    pw = hash_password("admin123")
+    conn.execute(
+        "INSERT INTO users (email, password, role) VALUES (%s, %s, 'admin')",
+        ("admin@octanova.com", pw)
+    )
+    conn.close()
+    return "Admin created: admin@octanova.com / admin123", 200
+
 # Always initialize DB — runs on import, works with gunicorn and python app.py
 with app.app_context():
     init_db()
