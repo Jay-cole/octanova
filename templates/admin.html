@@ -211,7 +211,10 @@
                   >
                   {% else %}<span class="badge badge-gray">New</span>{% endif %}
                 </td>
-                <td>{{ m['created_at'][:10] }}</td>
+                <td>
+                  {{ m['created_at'].strftime('%Y-%m-%d') if m['created_at']
+                  else '—' }}
+                </td>
               </tr>
               {% else %}
               <tr>
