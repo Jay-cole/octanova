@@ -3,8 +3,6 @@ import hashlib
 import pymysql
 import pymysql.cursors
 
-# ── Connection ────────────────────────────────────────────────────────────────
-
 DB_HOST = os.environ.get("MYSQL_HOST", "caboose.proxy.rlwy.net")
 DB_PORT = int(os.environ.get("MYSQL_PORT", 22081))
 DB_USER = os.environ.get("MYSQL_USER", "root")
@@ -12,35 +10,37 @@ DB_PASS = os.environ.get("MYSQL_PASSWORD", "")
 DB_NAME = os.environ.get("MYSQL_DATABASE", "railway")
 
 
-def get_db():
-    conn = pymysql.connect(
-        host=DB_HOST, port=DB_PORT,
-        user=DB_USER, password=DB_PASS,
-        database=DB_NAME,
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=True,
-        connect_timeout=10,
-    )
-    return DBConn(conn)
-
-
 class DBConn:
-    """Wraps pymysql connection to mimic sqlite3 interface used in app.py."""
+    """Wraps pymysql to mimic sqlite3 interface used throughout app.py."""
 
-    def __init__(self, conn):
-        self._conn = conn
-        self._cursor = conn.cursor()
+    def __init__(self):
+        self._conn = pymysql.connect(
+            host=DB_HOST, port=DB_PORT,
+            user=DB_USER, password=DB_PASS,
+            database=DB_NAME,
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=True,
+            connect_timeout=10,
+        )
+        self._cur = self._conn.cursor()
 
     def execute(self, sql, params=None):
-        self._cursor.execute(sql, params or ())
-        return self._cursor
+        self._cur.execute(sql, params or ())
+        return self._cur
 
     def commit(self):
         self._conn.commit()
 
     def close(self):
-        self._cursor.close()
-        self._conn.close()
+        try:
+            self._cur.close()
+            self._conn.close()
+        except Exception:
+            pass
+
+
+def get_db():
+    return DBConn()
 
 
 # ── Password hashing ──────────────────────────────────────────────────────────
@@ -62,9 +62,8 @@ def verify_password(password, stored):
 
 def init_db():
     conn = get_db()
-    c = conn.cursor()
 
-    c.execute("""CREATE TABLE IF NOT EXISTS users (
+    conn.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
         email VARCHAR(255) NOT NULL UNIQUE,
         password TEXT NOT NULL,
@@ -73,7 +72,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
-    c.execute("""CREATE TABLE IF NOT EXISTS students (
+    conn.execute("""CREATE TABLE IF NOT EXISTS students (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
         user_id INTEGER NOT NULL UNIQUE,
         name VARCHAR(255) NOT NULL,
@@ -87,7 +86,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
-    c.execute("""CREATE TABLE IF NOT EXISTS startups (
+    conn.execute("""CREATE TABLE IF NOT EXISTS startups (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
         user_id INTEGER NOT NULL UNIQUE,
         startup_name VARCHAR(255) NOT NULL,
@@ -101,7 +100,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
-    c.execute("""CREATE TABLE IF NOT EXISTS matches (
+    conn.execute("""CREATE TABLE IF NOT EXISTS matches (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
         student_id INTEGER NOT NULL,
         startup_id INTEGER NOT NULL,
@@ -117,7 +116,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
-    c.execute("""CREATE TABLE IF NOT EXISTS password_resets (
+    conn.execute("""CREATE TABLE IF NOT EXISTS password_resets (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
         user_id INTEGER NOT NULL,
         token VARCHAR(255) NOT NULL UNIQUE,
@@ -125,11 +124,10 @@ def init_db():
         used INTEGER DEFAULT 0
     )""")
 
-    # Default admin
-    c.execute("SELECT id FROM users WHERE role='admin' LIMIT 1")
-    if not c.fetchone():
+    existing = conn.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
+    if not existing:
         pw = hash_password("admin123")
-        c.execute(
+        conn.execute(
             "INSERT INTO users (email, password, role) VALUES (%s, %s, 'admin')",
             ("admin@octanova.com", pw)
         )
@@ -168,34 +166,31 @@ def compute_score(student, startup):
 def run_matching():
     from mailer import send_match_email
     conn = get_db()
-    c = conn.cursor()
 
-    c.execute("SELECT * FROM students")
-    students = c.fetchall()
-    c.execute("SELECT * FROM startups")
-    startups = c.fetchall()
+    students = conn.execute("SELECT * FROM students").fetchall()
+    startups = conn.execute("SELECT * FROM startups").fetchall()
 
     new_matches = 0
     for student in students:
         for startup in startups:
-            c.execute(
+            existing = conn.execute(
                 "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
                 (student["id"], startup["id"])
-            )
-            if c.fetchone():
+            ).fetchone()
+            if existing:
                 continue
 
             score, m_skills, m_interests, m_wants = compute_score(student, startup)
             if score < 60:
                 continue
 
-            c.execute("""
+            conn.execute("""
                 INSERT INTO matches
                     (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (student["id"], startup["id"], score, m_skills, m_interests, m_wants))
 
-            match_id = c.lastrowid
+            match_id = conn._cur.lastrowid
 
             send_match_email(
                 to_email=student["email"], to_name=student["name"],
@@ -214,7 +209,7 @@ def run_matching():
                 matched_wants=m_wants, score=score,
             )
 
-            c.execute("UPDATE matches SET email_sent=1 WHERE id=%s", (match_id,))
+            conn.execute("UPDATE matches SET email_sent=1 WHERE id=%s", (match_id,))
             new_matches += 1
 
     conn.close()
