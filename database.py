@@ -21,7 +21,26 @@ def get_db():
         autocommit=True,
         connect_timeout=10,
     )
-    return conn
+    return DBConn(conn)
+
+
+class DBConn:
+    """Wraps pymysql connection to mimic sqlite3 interface used in app.py."""
+
+    def __init__(self, conn):
+        self._conn = conn
+        self._cursor = conn.cursor()
+
+    def execute(self, sql, params=None):
+        self._cursor.execute(sql, params or ())
+        return self._cursor
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._cursor.close()
+        self._conn.close()
 
 
 # ── Password hashing ──────────────────────────────────────────────────────────
