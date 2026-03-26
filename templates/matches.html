@@ -26,11 +26,11 @@
       </div>
 
       {% if not matches %}
-      <div class="empty-state">
+      <div class="empty-state" style="padding-bottom: 24px">
         <div class="empty-icon">🔍</div>
         <p>
-          We're searching for the best matches for you.<br />You'll be notified
-          as soon as a match is found.
+          We are searching for the best matches for you.<br />In the meantime,
+          explore opportunities you might be interested in.
         </p>
       </div>
       {% endif %} {% for m in matches %}
@@ -120,7 +120,8 @@
         </div>
       </div>
       {% endfor %} {% if suggestions %}
-      <div style="margin-top: 32px">
+      <div style="margin-top:{% if matches %}32px{% else %}8px{% endif %}">
+        {% if matches %}
         <p
           style="
             font-size: 0.72rem;
@@ -128,23 +129,13 @@
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--text-dim);
-            margin-bottom: 6px;
+            margin-bottom: 14px;
           "
         >
-          Discovery Mode
+          Explore More
         </p>
-        <p
-          style="
-            font-size: 0.84rem;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-          "
-        >
-          We are searching for the best matches for you. In the meantime,
-          explore opportunities you might be interested in.
-        </p>
-        {% set weak_id = request.args.get('weak')|int(0) %} {% set weak_score =
-        request.args.get('score') %} {% for s in suggestions %}
+        {% endif %} {% set weak_id = request.args.get('weak')|int(0) %} {% set
+        weak_score = request.args.get('score') %} {% for s in suggestions %}
         <div class="card" style="opacity: 0.9">
           <div class="card-info" style="flex: 1; min-width: 0">
             {% if user_type == "student" %}

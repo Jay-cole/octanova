@@ -375,17 +375,17 @@ def matches():
         student_skills    = set(x.strip().lower() for x in (profile["skills"] or "").split(","))
         student_interests = set(x.strip().lower() for x in (profile["interests"] or "").split(","))
 
-        suggestions = []
+        loose, rest = [], []
         for su in all_startups:
             su_skills   = set(x.strip().lower() for x in (su["skills_needed"] or "").split(","))
             su_industry = set(x.strip().lower() for x in (su["industry"] or "").split(","))
             if student_skills & su_skills or student_interests & su_industry:
-                suggestions.append(dict(su))
-            if len(suggestions) >= 5:
-                break
-        # fallback: show any if no loose matches
-        if not suggestions:
-            suggestions = [dict(s) for s in all_startups[:5]]
+                loose.append(dict(su))
+            else:
+                rest.append(dict(su))
+
+        # Loose matches first, then others to fill up to 8
+        suggestions = (loose + rest)[:8]
 
         conn.close()
 
@@ -445,16 +445,16 @@ def matches():
         startup_skills   = set(x.strip().lower() for x in (profile["skills_needed"] or "").split(","))
         startup_industry = set(x.strip().lower() for x in (profile["industry"] or "").split(","))
 
-        suggestions = []
+        loose, rest = [], []
         for st in all_students:
             st_skills    = set(x.strip().lower() for x in (st["skills"] or "").split(","))
             st_interests = set(x.strip().lower() for x in (st["interests"] or "").split(","))
             if startup_skills & st_skills or startup_industry & st_interests:
-                suggestions.append(dict(st))
-            if len(suggestions) >= 5:
-                break
-        if not suggestions:
-            suggestions = [dict(s) for s in all_students[:5]]
+                loose.append(dict(st))
+            else:
+                rest.append(dict(st))
+
+        suggestions = (loose + rest)[:8]
 
         conn.close()
 
