@@ -374,13 +374,13 @@ def matches():
             name      = m["startup_name"]
 
             wa_msg = (
-                f"Hi {name}! ≡ƒæï\n\n"
-                f"I found you through OctaNova ΓÇö we matched based on my skills in {skills}.\n\n"
+                f"Hi {name}! 👋\n\n"
+                f"I found you through OctaNova — we matched based on my skills in {skills}.\n\n"
                 f"I'm really interested in what you're building in {industry} "
                 f"and would love to explore how I can contribute.\n\n"
                 f"Looking forward to connecting!"
             )
-            email_subj = "OctaNova Match ΓÇô Let's Connect!"
+            email_subj = "OctaNova Match - Let's Connect!"
             email_body = (
                 f"Hi {name},\n\n"
                 f"I found you through OctaNova. We matched based on my skills in {skills} "
@@ -420,13 +420,13 @@ def matches():
             name     = m["name"]
 
             wa_msg = (
-                f"Hi {name}! ≡ƒæï\n\n"
-                f"I found you through OctaNova ΓÇö we matched because your skills in {skills} "
+                f"Hi {name}! 👋\n\n"
+                f"I found you through OctaNova — we matched because your skills in {skills} "
                 f"are exactly what we need.\n\n"
                 f"We're building in {industry} and we offer {offers}. "
                 f"Would love to chat about working together!"
             )
-            email_subj = "OctaNova Match ΓÇô Opportunity for You!"
+            email_subj = "OctaNova Match - Opportunity for You!"
             email_body = (
                 f"Hi {name},\n\n"
                 f"I found you through OctaNova. We matched because your skills in {skills} "
@@ -514,7 +514,7 @@ def test_email():
         matched_wants="mentorship",
         score=80,
     )
-    flash(f"Test email fired to {session['email']} ΓÇö check Render logs.", "success")
+    flash(f"Test email fired to {session['email']} — check Render logs.", "success")
     return redirect(url_for("admin"))
 
 @app.route("/setup-admin")
@@ -542,7 +542,7 @@ def setup_cleanup():
     conn.close()
     return "Cleaned up low-score matches.", 200
 
-# Always initialize DB ΓÇö runs on import, works with gunicorn and python app.py
+# Always initialize DB — runs on import, works with gunicorn and python app.py
 with app.app_context():
     init_db()
 
