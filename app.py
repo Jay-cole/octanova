@@ -364,7 +364,7 @@ def matches():
         conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
         conn.commit()
 
-        # Suggestions: all startups not yet matched, loose matches first
+        # Suggestions: only startups with skill OR industry overlap, no fallback
         all_startups = conn.execute("""
             SELECT s.* FROM startups s
             LEFT JOIN matches m ON m.startup_id = s.id AND m.student_id = %s
@@ -374,16 +374,14 @@ def matches():
         student_skills    = set(x.strip().lower() for x in (profile["skills"] or "").split(","))
         student_interests = set(x.strip().lower() for x in (profile["interests"] or "").split(","))
 
-        loose, rest = [], []
+        suggestions = []
         for su in all_startups:
             su_skills   = set(x.strip().lower() for x in (su["skills_needed"] or "").split(","))
             su_industry = set(x.strip().lower() for x in (su["industry"] or "").split(","))
             if student_skills & su_skills or student_interests & su_industry:
-                loose.append(dict(su))
-            else:
-                rest.append(dict(su))
-
-        suggestions = (loose + rest)[:8]
+                suggestions.append(dict(su))
+            if len(suggestions) >= 8:
+                break
 
         conn.close()
 
@@ -432,7 +430,7 @@ def matches():
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
 
-        # Suggestions: all students not yet matched, loose matches first
+        # Suggestions: only students with skill OR industry overlap, no fallback
         all_students = conn.execute("""
             SELECT s.* FROM students s
             LEFT JOIN matches m ON m.student_id = s.id AND m.startup_id = %s
@@ -442,16 +440,14 @@ def matches():
         startup_skills   = set(x.strip().lower() for x in (profile["skills_needed"] or "").split(","))
         startup_industry = set(x.strip().lower() for x in (profile["industry"] or "").split(","))
 
-        loose, rest = [], []
+        suggestions = []
         for st in all_students:
             st_skills    = set(x.strip().lower() for x in (st["skills"] or "").split(","))
             st_interests = set(x.strip().lower() for x in (st["interests"] or "").split(","))
             if startup_skills & st_skills or startup_industry & st_interests:
-                loose.append(dict(st))
-            else:
-                rest.append(dict(st))
-
-        suggestions = (loose + rest)[:8]
+                suggestions.append(dict(st))
+            if len(suggestions) >= 8:
+                break
 
         conn.close()
 
