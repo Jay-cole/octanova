@@ -26,50 +26,18 @@
       </div>
 
       {% if not matches %}
-      <!-- No matches yet — show searching message + suggestions -->
-      <div class="empty-state" style="padding-bottom: 20px">
+      <div class="empty-state">
         <div class="empty-icon">🔍</div>
         <p>
-          We are searching for the best matches for you.<br />In the meantime,
-          here are some opportunities you might be interested in.
+          We are searching for the best matches for you.<br />You'll be notified
+          as soon as a match is found.
         </p>
+        <a href="/dashboard" class="btn btn-ghost btn-sm"
+          >← Back to Dashboard</a
+        >
       </div>
 
-      {% if suggestions %} {% for s in suggestions %}
-      <div class="card">
-        <div class="card-info" style="flex: 1; min-width: 0">
-          {% if user_type == "student" %}
-          <h3>🚀 {{ s["startup_name"] }}</h3>
-          <p>Industry: {{ s["industry"] }}</p>
-          <p>Skills needed: {{ s["skills_needed"] }}</p>
-          <p>Offers: {{ s["offers"] }}</p>
-          {% else %}
-          <h3>🎓 {{ s["name"] }}</h3>
-          <p>Skills: {{ s["skills"] }}</p>
-          <p>Interests: {{ s["interests"] }}</p>
-          <p>{{ s["availability"] }} hrs/week</p>
-          {% endif %}
-        </div>
-        <div class="card-actions">
-          <form method="POST" action="/request-match/{{ s['id'] }}">
-            <button class="btn btn-primary btn-sm">Request Match</button>
-          </form>
-        </div>
-      </div>
-      {% endfor %} {% else %}
-      <p
-        style="
-          text-align: center;
-          color: var(--text-dim);
-          font-size: 0.88rem;
-          margin-top: 8px;
-        "
-      >
-        No suggestions available yet — check back soon.
-      </p>
-      {% endif %} {% else %}
-      <!-- Has matches -->
-      {% for m in matches %}
+      {% else %} {% for m in matches %}
       <div class="card">
         <div class="card-info" style="flex: 1; min-width: 0">
           {% if user_type == "student" %}

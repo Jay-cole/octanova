@@ -479,7 +479,7 @@ def matches():
             m["email_link"] = email_url(m["match_email"], email_subj, email_body)
             rows.append(m)
 
-    return render_template("matches.html", matches=rows, user_type=ptype, suggestions=suggestions)
+    return render_template("matches.html", matches=rows, user_type=ptype)
 
 
 def request_match(target_id):
