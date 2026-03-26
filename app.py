@@ -364,12 +364,11 @@ def matches():
         conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
         conn.commit()
 
-        # Suggestions: loose match — startups sharing industry or skills, not yet matched
+        # Suggestions: all startups not yet matched, loose matches first
         all_startups = conn.execute("""
             SELECT s.* FROM startups s
-            WHERE s.id NOT IN (
-                SELECT startup_id FROM matches WHERE student_id=%s
-            )
+            LEFT JOIN matches m ON m.startup_id = s.id AND m.student_id = %s
+            WHERE m.id IS NULL
         """, (profile["id"],)).fetchall()
 
         student_skills    = set(x.strip().lower() for x in (profile["skills"] or "").split(","))
@@ -384,7 +383,6 @@ def matches():
             else:
                 rest.append(dict(su))
 
-        # Loose matches first, then others to fill up to 8
         suggestions = (loose + rest)[:8]
 
         conn.close()
@@ -434,12 +432,11 @@ def matches():
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
 
-        # Suggestions: loose match — students sharing skills or interests, not yet matched
+        # Suggestions: all students not yet matched, loose matches first
         all_students = conn.execute("""
             SELECT s.* FROM students s
-            WHERE s.id NOT IN (
-                SELECT student_id FROM matches WHERE startup_id=%s
-            )
+            LEFT JOIN matches m ON m.student_id = s.id AND m.startup_id = %s
+            WHERE m.id IS NULL
         """, (profile["id"],)).fetchall()
 
         startup_skills   = set(x.strip().lower() for x in (profile["skills_needed"] or "").split(","))
