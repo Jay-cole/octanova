@@ -37,7 +37,7 @@ def unread_match_count():
         if not pid:
             conn.close(); return 0
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s AND student_seen=0", (pid["id"],)
+            "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s AND student_seen=0 AND score >= 60", (pid["id"],)
         ).fetchone()
         count = row["cnt"] if row else 0
     else:
@@ -45,7 +45,7 @@ def unread_match_count():
         if not pid:
             conn.close(); return 0
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s AND startup_seen=0", (pid["id"],)
+            "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s AND startup_seen=0 AND score >= 60", (pid["id"],)
         ).fetchone()
         count = row["cnt"] if row else 0
     conn.close()
@@ -226,14 +226,14 @@ def dashboard():
         profile = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
         if profile:
             row = conn.execute(
-                "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s", (profile["id"],)
+                "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s AND score >= 60", (profile["id"],)
             ).fetchone()
             match_count = row["cnt"] if row else 0
     elif ptype == "startup":
         profile = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
         if profile:
             row = conn.execute(
-                "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s", (profile["id"],)
+                "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s AND score >= 60", (profile["id"],)
             ).fetchone()
             match_count = row["cnt"] if row else 0
 
