@@ -364,14 +364,28 @@ def matches():
         conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
         conn.commit()
 
-        # Suggestions: startups not yet matched with this student
-        suggestions = conn.execute("""
+        # Suggestions: loose match — startups sharing industry or skills, not yet matched
+        all_startups = conn.execute("""
             SELECT s.* FROM startups s
             WHERE s.id NOT IN (
                 SELECT startup_id FROM matches WHERE student_id=%s
             )
-            LIMIT 5
         """, (profile["id"],)).fetchall()
+
+        student_skills    = set(x.strip().lower() for x in (profile["skills"] or "").split(","))
+        student_interests = set(x.strip().lower() for x in (profile["interests"] or "").split(","))
+
+        suggestions = []
+        for su in all_startups:
+            su_skills   = set(x.strip().lower() for x in (su["skills_needed"] or "").split(","))
+            su_industry = set(x.strip().lower() for x in (su["industry"] or "").split(","))
+            if student_skills & su_skills or student_interests & su_industry:
+                suggestions.append(dict(su))
+            if len(suggestions) >= 5:
+                break
+        # fallback: show any if no loose matches
+        if not suggestions:
+            suggestions = [dict(s) for s in all_startups[:5]]
 
         conn.close()
 
@@ -420,14 +434,27 @@ def matches():
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
 
-        # Suggestions: students not yet matched with this startup
-        suggestions = conn.execute("""
+        # Suggestions: loose match — students sharing skills or interests, not yet matched
+        all_students = conn.execute("""
             SELECT s.* FROM students s
             WHERE s.id NOT IN (
                 SELECT student_id FROM matches WHERE startup_id=%s
             )
-            LIMIT 5
         """, (profile["id"],)).fetchall()
+
+        startup_skills   = set(x.strip().lower() for x in (profile["skills_needed"] or "").split(","))
+        startup_industry = set(x.strip().lower() for x in (profile["industry"] or "").split(","))
+
+        suggestions = []
+        for st in all_students:
+            st_skills    = set(x.strip().lower() for x in (st["skills"] or "").split(","))
+            st_interests = set(x.strip().lower() for x in (st["interests"] or "").split(","))
+            if startup_skills & st_skills or startup_industry & st_interests:
+                suggestions.append(dict(st))
+            if len(suggestions) >= 5:
+                break
+        if not suggestions:
+            suggestions = [dict(s) for s in all_students[:5]]
 
         conn.close()
 
@@ -462,54 +489,64 @@ def matches():
     return render_template("matches.html", matches=rows, user_type=ptype, suggestions=suggestions)
 
 
-@app.route("/request-match/<int:target_id>", methods=["POST"])
-@login_required
 def request_match(target_id):
-    """Manually trigger a match between current user and a suggested profile."""
-    ptype = session.get("profile_type")
-    uid   = session["user_id"]
-    conn  = get_db()
+    ptype  = session.get("profile_type")
+    uid    = session["user_id"]
+    force  = request.form.get("force") == "1"
+    conn   = get_db()
+    from database import compute_score
 
     if ptype == "student":
         profile = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
         startup = conn.execute("SELECT * FROM startups WHERE id=%s", (target_id,)).fetchone()
-        if profile and startup:
-            existing = conn.execute(
-                "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
-                (profile["id"], startup["id"])
-            ).fetchone()
-            if not existing:
-                from database import compute_score
-                score, m_skills, m_interests, m_wants = compute_score(profile, startup)
-                # Force create even if score < 60 since user manually requested
-                conn.execute("""
-                    INSERT INTO matches (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (profile["id"], startup["id"], max(score, 1), m_skills, m_interests, m_wants))
-                flash("Match requested! Check your matches.", "success")
-            else:
-                flash("You already have a match with this startup.", "error")
+        if not profile or not startup:
+            conn.close(); return redirect(url_for("matches"))
+        existing = conn.execute(
+            "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
+            (profile["id"], startup["id"])
+        ).fetchone()
+        if existing:
+            flash("You already have a match with this startup.", "error")
+            conn.close(); return redirect(url_for("matches"))
+        score, m_skills, m_interests, m_wants = compute_score(profile, startup)
+        if score >= 60 or force:
+            conn.execute("""
+                INSERT INTO matches (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (profile["id"], startup["id"], score, m_skills, m_interests, m_wants))
+            flash("Match created!" if score >= 60 else "Connected — may not be a strong match, but you're in.", "success")
+        else:
+            conn.close()
+            flash(f"Only {score}% compatibility. Not a strong match — connect anyway?", "error")
+            return redirect(url_for("matches") + f"?weak={target_id}&score={score}")
+
     else:
         profile = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
         student = conn.execute("SELECT * FROM students WHERE id=%s", (target_id,)).fetchone()
-        if profile and student:
-            existing = conn.execute(
-                "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
-                (student["id"], profile["id"])
-            ).fetchone()
-            if not existing:
-                from database import compute_score
-                score, m_skills, m_interests, m_wants = compute_score(student, profile)
-                conn.execute("""
-                    INSERT INTO matches (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (student["id"], profile["id"], max(score, 1), m_skills, m_interests, m_wants))
-                flash("Match requested! Check your matches.", "success")
-            else:
-                flash("You already have a match with this student.", "error")
+        if not profile or not student:
+            conn.close(); return redirect(url_for("matches"))
+        existing = conn.execute(
+            "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
+            (student["id"], profile["id"])
+        ).fetchone()
+        if existing:
+            flash("You already have a match with this student.", "error")
+            conn.close(); return redirect(url_for("matches"))
+        score, m_skills, m_interests, m_wants = compute_score(student, profile)
+        if score >= 60 or force:
+            conn.execute("""
+                INSERT INTO matches (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (student["id"], profile["id"], score, m_skills, m_interests, m_wants))
+            flash("Match created!" if score >= 60 else "Connected — may not be a strong match, but you're in.", "success")
+        else:
+            conn.close()
+            flash(f"Only {score}% compatibility. Not a strong match — connect anyway?", "error")
+            return redirect(url_for("matches") + f"?weak={target_id}&score={score}")
 
     conn.close()
     return redirect(url_for("matches"))
+
 
 @app.route("/accept/<int:match_id>", methods=["POST"])
 @login_required
