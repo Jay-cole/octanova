@@ -26,14 +26,50 @@
       </div>
 
       {% if not matches %}
-      <div class="empty-state" style="padding-bottom: 24px">
+      <!-- No matches yet — show searching message + suggestions -->
+      <div class="empty-state" style="padding-bottom: 20px">
         <div class="empty-icon">🔍</div>
         <p>
           We are searching for the best matches for you.<br />In the meantime,
-          explore opportunities you might be interested in.
+          here are some opportunities you might be interested in.
         </p>
       </div>
-      {% endif %} {% for m in matches %}
+
+      {% if suggestions %} {% for s in suggestions %}
+      <div class="card">
+        <div class="card-info" style="flex: 1; min-width: 0">
+          {% if user_type == "student" %}
+          <h3>🚀 {{ s["startup_name"] }}</h3>
+          <p>Industry: {{ s["industry"] }}</p>
+          <p>Skills needed: {{ s["skills_needed"] }}</p>
+          <p>Offers: {{ s["offers"] }}</p>
+          {% else %}
+          <h3>🎓 {{ s["name"] }}</h3>
+          <p>Skills: {{ s["skills"] }}</p>
+          <p>Interests: {{ s["interests"] }}</p>
+          <p>{{ s["availability"] }} hrs/week</p>
+          {% endif %}
+        </div>
+        <div class="card-actions">
+          <form method="POST" action="/request-match/{{ s['id'] }}">
+            <button class="btn btn-primary btn-sm">Request Match</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %} {% else %}
+      <p
+        style="
+          text-align: center;
+          color: var(--text-dim);
+          font-size: 0.88rem;
+          margin-top: 8px;
+        "
+      >
+        No suggestions available yet — check back soon.
+      </p>
+      {% endif %} {% else %}
+      <!-- Has matches -->
+      {% for m in matches %}
       <div class="card">
         <div class="card-info" style="flex: 1; min-width: 0">
           {% if user_type == "student" %}
@@ -119,63 +155,7 @@
           {% endif %}
         </div>
       </div>
-      {% endfor %} {% if suggestions %}
-      <div style="margin-top:{% if matches %}32px{% else %}8px{% endif %}">
-        {% if matches %}
-        <p
-          style="
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-dim);
-            margin-bottom: 14px;
-          "
-        >
-          Explore More
-        </p>
-        {% endif %} {% set weak_id = request.args.get('weak')|int(0) %} {% set
-        weak_score = request.args.get('score') %} {% for s in suggestions %}
-        <div class="card" style="opacity: 0.9">
-          <div class="card-info" style="flex: 1; min-width: 0">
-            {% if user_type == "student" %}
-            <h3>🚀 {{ s["startup_name"] }}</h3>
-            <p>Industry: {{ s["industry"] }}</p>
-            <p>Skills needed: {{ s["skills_needed"] }}</p>
-            <p>Offers: {{ s["offers"] }}</p>
-            {% else %}
-            <h3>🎓 {{ s["name"] }}</h3>
-            <p>Skills: {{ s["skills"] }}</p>
-            <p>Interests: {{ s["interests"] }}</p>
-            <p>{{ s["availability"] }} hrs/week</p>
-            {% endif %}
-          </div>
-          <div class="card-actions">
-            {% if weak_id == s["id"] %}
-            <p
-              style="
-                font-size: 0.78rem;
-                color: var(--yellow);
-                margin-bottom: 8px;
-                text-align: right;
-              "
-            >
-              {{ weak_score }}% match
-            </p>
-            <form method="POST" action="/request-match/{{ s['id'] }}">
-              <input type="hidden" name="force" value="1" />
-              <button class="btn btn-danger btn-sm">Connect Anyway</button>
-            </form>
-            {% else %}
-            <form method="POST" action="/request-match/{{ s['id'] }}">
-              <button class="btn btn-secondary btn-sm">Try Match</button>
-            </form>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
+      {% endfor %} {% endif %}
     </div>
   </body>
 </html>
