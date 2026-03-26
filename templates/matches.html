@@ -74,6 +74,16 @@
               {% endif %} {% endif %}
             </ul>
           </div>
+          {% else %}
+          <div class="match-reason">
+            <p>Why you matched</p>
+            <ul>
+              <li>
+                This match was selected based on your overall profile
+                compatibility.
+              </li>
+            </ul>
+          </div>
           {% endif %} {% if m["student_accepted"] and m["startup_accepted"] %}
           {% set other_name = m["startup_name"] if user_type == "student" else
           m["name"] %}
