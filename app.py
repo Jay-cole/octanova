@@ -363,6 +363,16 @@ def matches():
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
         conn.commit()
+
+        # Suggestions: startups not yet matched with this student
+        suggestions = conn.execute("""
+            SELECT s.* FROM startups s
+            WHERE s.id NOT IN (
+                SELECT startup_id FROM matches WHERE student_id=%s
+            )
+            LIMIT 5
+        """, (profile["id"],)).fetchall()
+
         conn.close()
 
         rows = []
@@ -409,6 +419,16 @@ def matches():
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
+
+        # Suggestions: students not yet matched with this startup
+        suggestions = conn.execute("""
+            SELECT s.* FROM students s
+            WHERE s.id NOT IN (
+                SELECT student_id FROM matches WHERE startup_id=%s
+            )
+            LIMIT 5
+        """, (profile["id"],)).fetchall()
+
         conn.close()
 
         rows = []
@@ -439,7 +459,57 @@ def matches():
             m["email_link"] = email_url(m["match_email"], email_subj, email_body)
             rows.append(m)
 
-    return render_template("matches.html", matches=rows, user_type=ptype)
+    return render_template("matches.html", matches=rows, user_type=ptype, suggestions=suggestions)
+
+
+@app.route("/request-match/<int:target_id>", methods=["POST"])
+@login_required
+def request_match(target_id):
+    """Manually trigger a match between current user and a suggested profile."""
+    ptype = session.get("profile_type")
+    uid   = session["user_id"]
+    conn  = get_db()
+
+    if ptype == "student":
+        profile = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
+        startup = conn.execute("SELECT * FROM startups WHERE id=%s", (target_id,)).fetchone()
+        if profile and startup:
+            existing = conn.execute(
+                "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
+                (profile["id"], startup["id"])
+            ).fetchone()
+            if not existing:
+                from database import compute_score
+                score, m_skills, m_interests, m_wants = compute_score(profile, startup)
+                # Force create even if score < 60 since user manually requested
+                conn.execute("""
+                    INSERT INTO matches (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (profile["id"], startup["id"], max(score, 1), m_skills, m_interests, m_wants))
+                flash("Match requested! Check your matches.", "success")
+            else:
+                flash("You already have a match with this startup.", "error")
+    else:
+        profile = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
+        student = conn.execute("SELECT * FROM students WHERE id=%s", (target_id,)).fetchone()
+        if profile and student:
+            existing = conn.execute(
+                "SELECT id FROM matches WHERE student_id=%s AND startup_id=%s",
+                (student["id"], profile["id"])
+            ).fetchone()
+            if not existing:
+                from database import compute_score
+                score, m_skills, m_interests, m_wants = compute_score(student, profile)
+                conn.execute("""
+                    INSERT INTO matches (student_id, startup_id, score, matched_skills, matched_interests, matched_wants)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (student["id"], profile["id"], max(score, 1), m_skills, m_interests, m_wants))
+                flash("Match requested! Check your matches.", "success")
+            else:
+                flash("You already have a match with this student.", "error")
+
+    conn.close()
+    return redirect(url_for("matches"))
 
 @app.route("/accept/<int:match_id>", methods=["POST"])
 @login_required

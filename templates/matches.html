@@ -32,9 +32,6 @@
           We're searching for the best matches for you.<br />You'll be notified
           as soon as a match is found.
         </p>
-        <a href="/dashboard" class="btn btn-ghost btn-sm"
-          >← Back to Dashboard</a
-        >
       </div>
       {% endif %} {% for m in matches %}
       <div class="card">
@@ -44,8 +41,8 @@
           <p>Industry: {{ m["industry"] }}</p>
           <p>Offers: {{ m["offers"] }}</p>
           <p>
-            {{ m["commitment"] }} hrs/week &nbsp;·&nbsp; {{ m["remote_physical"]
-            | capitalize }}
+            {{ m["commitment"] }} hrs/week · {{ m["remote_physical"] |
+            capitalize }}
           </p>
           {% else %}
           <h3>🎓 {{ m["name"] }}</h3>
@@ -122,7 +119,47 @@
           {% endif %}
         </div>
       </div>
-      {% endfor %}
+      {% endfor %} {% if suggestions %}
+      <div style="margin-top: 32px">
+        <p
+          style="
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 14px;
+          "
+        >
+          You might also be interested in
+        </p>
+        {% for s in suggestions %}
+        <div class="card" style="opacity: 0.85">
+          <div class="card-info" style="flex: 1; min-width: 0">
+            {% if user_type == "student" %}
+            <h3>🚀 {{ s["startup_name"] }}</h3>
+            <p>Industry: {{ s["industry"] }}</p>
+            <p>Offers: {{ s["offers"] }}</p>
+            <p>
+              {{ s["commitment"] }} hrs/week · {{ s["remote_physical"] |
+              capitalize }}
+            </p>
+            {% else %}
+            <h3>🎓 {{ s["name"] }}</h3>
+            <p>Skills: {{ s["skills"] }}</p>
+            <p>Interests: {{ s["interests"] }}</p>
+            <p>{{ s["availability"] }} hrs/week availability</p>
+            {% endif %}
+          </div>
+          <div class="card-actions">
+            <form method="POST" action="/request-match/{{ s['id'] }}">
+              <button class="btn btn-secondary btn-sm">Request Match</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
   </body>
 </html>
