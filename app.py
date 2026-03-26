@@ -358,7 +358,7 @@ def matches():
                    s.startup_name, s.industry, s.offers, s.commitment, s.remote_physical,
                    s.email AS match_email, s.whatsapp AS match_whatsapp
             FROM matches m JOIN startups s ON m.startup_id = s.id
-            WHERE m.student_id = %s
+            WHERE m.student_id = %s AND m.score >= 60
             ORDER BY m.score DESC
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
@@ -404,7 +404,7 @@ def matches():
                    st.name, st.skills, st.interests, st.availability,
                    st.email AS match_email, st.whatsapp AS match_whatsapp
             FROM matches m JOIN students st ON m.student_id = st.id
-            WHERE m.startup_id = %s
+            WHERE m.startup_id = %s AND m.score >= 60
             ORDER BY m.score DESC
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
@@ -531,6 +531,16 @@ def setup_admin():
     )
     conn.close()
     return "Admin created: admin@octanova.com / admin123", 200
+
+
+@app.route("/setup-cleanup")
+@admin_required
+def setup_cleanup():
+    """Remove matches with score < 60 (created by old request-match experiments)."""
+    conn = get_db()
+    conn.execute("DELETE FROM matches WHERE score < 60")
+    conn.close()
+    return "Cleaned up low-score matches.", 200
 
 # Always initialize DB ΓÇö runs on import, works with gunicorn and python app.py
 with app.app_context():
