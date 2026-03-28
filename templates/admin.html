@@ -95,6 +95,7 @@
                 <th>Interests</th>
                 <th>Wants</th>
                 <th>Hrs/wk</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +109,17 @@
                 <td>{{ s['interests'] }}</td>
                 <td>{{ s['wants'] }}</td>
                 <td>{{ s['availability'] }}</td>
+                <td>
+                  <form
+                    method="POST"
+                    action="/admin/delete_student/{{ s['id'] }}"
+                    onsubmit="
+                      return confirm('Delete this student and their matches?');
+                    "
+                  >
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                </td>
               </tr>
               {% else %}
               <tr>
@@ -141,6 +153,7 @@
                 <th>Offers</th>
                 <th>Hrs/wk</th>
                 <th>Mode</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -154,6 +167,17 @@
                 <td>{{ s['offers'] }}</td>
                 <td>{{ s['commitment'] }}</td>
                 <td>{{ s['remote_physical'] | capitalize }}</td>
+                <td>
+                  <form
+                    method="POST"
+                    action="/admin/delete_startup/{{ s['id'] }}"
+                    onsubmit="
+                      return confirm('Delete this startup and their matches?');
+                    "
+                  >
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                </td>
               </tr>
               {% else %}
               <tr>
@@ -182,10 +206,11 @@
                 <th>Student</th>
                 <th>Startup</th>
                 <th>Score</th>
-                <th>Student ✓</th>
-                <th>Startup ✓</th>
+                <th>Student</th>
+                <th>Startup</th>
                 <th>Status</th>
                 <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -198,8 +223,8 @@
                     >{{ m['score'] }}%</strong
                   >
                 </td>
-                <td>{{ '✓' if m['student_accepted'] else '—' }}</td>
-                <td>{{ '✓' if m['startup_accepted'] else '—' }}</td>
+                <td>{{ 'Yes' if m['student_accepted'] else 'No' }}</td>
+                <td>{{ 'Yes' if m['startup_accepted'] else 'No' }}</td>
                 <td>
                   {% if m['student_accepted'] and m['startup_accepted'] %}<span
                     class="badge badge-green"
@@ -214,6 +239,20 @@
                 <td>
                   {{ m['created_at'].strftime('%Y-%m-%d') if m['created_at']
                   else '—' }}
+                </td>
+                <td style="display: flex; gap: 6px; flex-wrap: wrap">
+                  <form
+                    method="POST"
+                    action="/admin/delete_match/{{ m['id'] }}"
+                    onsubmit="return confirm('Delete this match?');"
+                  >
+                    <button class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                  {% if m['student_accepted'] or m['startup_accepted'] %}
+                  <form method="POST" action="/admin/undo_match/{{ m['id'] }}">
+                    <button class="btn btn-ghost btn-sm">Undo</button>
+                  </form>
+                  {% endif %}
                 </td>
               </tr>
               {% else %}

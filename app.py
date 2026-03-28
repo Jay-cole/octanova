@@ -496,7 +496,45 @@ def manual_match():
     conn.close()
     return redirect(url_for("admin"))
 
-@app.route("/admin/test_email")
+@app.route("/admin/delete_student/<int:student_id>", methods=["POST"])
+@admin_required
+def delete_student(student_id):
+    conn = get_db()
+    conn.execute("DELETE FROM matches WHERE student_id=%s", (student_id,))
+    conn.execute("DELETE FROM students WHERE id=%s", (student_id,))
+    conn.close()
+    flash("Student deleted.", "success")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/delete_startup/<int:startup_id>", methods=["POST"])
+@admin_required
+def delete_startup(startup_id):
+    conn = get_db()
+    conn.execute("DELETE FROM matches WHERE startup_id=%s", (startup_id,))
+    conn.execute("DELETE FROM startups WHERE id=%s", (startup_id,))
+    conn.close()
+    flash("Startup deleted.", "success")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/delete_match/<int:match_id>", methods=["POST"])
+@admin_required
+def delete_match(match_id):
+    conn = get_db()
+    conn.execute("DELETE FROM matches WHERE id=%s", (match_id,))
+    conn.close()
+    flash("Match deleted.", "success")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/undo_match/<int:match_id>", methods=["POST"])
+@admin_required
+def undo_match(match_id):
+    conn = get_db()
+    conn.execute("UPDATE matches SET student_accepted=0, startup_accepted=0 WHERE id=%s", (match_id,))
+    conn.close()
+    flash("Match acceptance reset.", "success")
+    return redirect(url_for("admin"))
+
+
 @admin_required
 def test_email():
     from mailer import send_match_email
