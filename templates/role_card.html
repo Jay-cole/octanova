@@ -14,7 +14,7 @@
   {% elif r.get("video_url") %}
   <div
     class="role-media role-video-wrap"
-    onclick="playVideo(this, '{{ r['video_url'] }}')"
+    onclick="playVideo(this,'{{ r['video_url'] }}')"
   >
     <video
       class="role-img"
@@ -58,7 +58,7 @@
       {% endif %}
     </div>
 
-    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px">
+    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px">
       <span class="badge badge-gray">{{ r["role_type"] | capitalize }}</span>
       <span class="badge badge-gray"
         >{{ r["location_type"] | capitalize }}</span
@@ -73,15 +73,35 @@
     {% if r.get("description") %}
     <p
       style="
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+      "
+    >
+      What you'll be doing
+    </p>
+    <p
+      style="
         font-size: 0.84rem;
         color: var(--text-muted);
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         line-height: 1.6;
       "
     >
       {{ r["description"] }}
     </p>
     {% endif %} {% if r.get("skills_required") %}
+    <p
+      style="
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+      "
+    >
+      Skills needed
+    </p>
     <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px">
       {% for skill in r["skills_required"].split(",") %}
       <span class="badge badge-purple">{{ skill.strip() }}</span>
@@ -91,13 +111,9 @@
     <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 12px">
       Deadline: {{ r["deadline"] }}
     </p>
-    {% endif %}
-
-    <!-- Action buttons -->
-    {% if r.get("interested") %}
+    {% endif %} {% if r.get("interested") %}
     <span class="badge badge-green">Accepted</span>
     {% elif r.get("is_matched") %}
-    <!-- Matched role — student must actively choose -->
     <div style="display: flex; gap: 8px; flex-wrap: wrap">
       <form method="POST" action="/roles/interest/{{ r['id'] }}">
         <button class="btn btn-success btn-sm">Accept Match</button>
@@ -107,7 +123,6 @@
       </form>
     </div>
     {% else %}
-    <!-- Browse role — I'm Interested -->
     <form method="POST" action="/roles/interest/{{ r['id'] }}">
       <button class="btn btn-primary btn-sm">I'm Interested</button>
     </form>
@@ -115,7 +130,6 @@
   </div>
 </div>
 
-<!-- Lightbox (shared, only rendered once but reused) -->
 <div
   id="lightbox"
   onclick="closeLightbox()"
