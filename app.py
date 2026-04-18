@@ -37,7 +37,7 @@ def unread_match_count():
         if not pid:
             conn.close(); return 0
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s AND student_seen=0 AND score >= 60", (pid["id"],)
+            "SELECT COUNT(*) AS cnt FROM matches WHERE student_id=%s AND student_seen=0 AND score >= 60 AND student_accepted != 2", (pid["id"],)
         ).fetchone()
         count = row["cnt"] if row else 0
     else:
@@ -45,7 +45,7 @@ def unread_match_count():
         if not pid:
             conn.close(); return 0
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s AND startup_seen=0 AND score >= 60", (pid["id"],)
+            "SELECT COUNT(*) AS cnt FROM matches WHERE startup_id=%s AND startup_seen=0 AND score >= 60 AND startup_accepted != 2", (pid["id"],)
         ).fetchone()
         count = row["cnt"] if row else 0
     conn.close()
@@ -329,22 +329,9 @@ def startup_profile():
 @app.route("/matches")
 @login_required
 def matches():
-    from urllib.parse import quote
     uid   = session["user_id"]
     ptype = session.get("profile_type")
     conn  = get_db()
-
-    def wa_url(number, message):
-        """Build a wa.me deep-link that opens a pre-filled DM."""
-        if not number:
-            return None
-        clean = number.replace("+", "").replace(" ", "").replace("-", "")
-        return f"https://wa.me/{clean}%stext={quote(message, safe='')}"
-
-    def email_url(address, subject, body):
-        if not address:
-            return None
-        return f"mailto:{address}%ssubject={quote(subject, safe='')}&body={quote(body, safe='')}"
 
     if ptype == "student":
         profile = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
@@ -352,9 +339,10 @@ def matches():
             conn.close()
             flash("Complete your profile first.", "error")
             return redirect(url_for("student_profile"))
-        raw = conn.execute("""
+
+        all_matches = conn.execute("""
             SELECT m.id, m.score, m.matched_skills, m.matched_interests, m.matched_wants,
-                   m.student_accepted, m.startup_accepted,
+                   m.student_accepted, m.startup_accepted, m.created_at,
                    s.startup_name, s.industry, s.offers, s.commitment, s.remote_physical,
                    s.email AS match_email, s.whatsapp AS match_whatsapp,
                    s.avatar_url AS match_avatar, s.logo_url AS match_logo
@@ -364,34 +352,35 @@ def matches():
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET student_seen=1 WHERE student_id=%s", (profile["id"],))
         conn.commit()
+
+        # Role interests (student clicked I'm Interested)
+        role_interests = conn.execute("""
+            SELECT ri.id, ri.startup_accepted, ri.student_accepted, ri.created_at,
+                   r.title, r.role_type, r.location_type,
+                   s.startup_name, s.logo_url, s.avatar_url
+            FROM role_interests ri
+            JOIN roles r ON ri.role_id = r.id
+            JOIN startups s ON r.startup_id = s.id
+            WHERE ri.student_id = %s
+            ORDER BY ri.created_at DESC
+        """, (profile["id"],)).fetchall()
+
         conn.close()
 
-        rows = []
-        for m in raw:
+        pending, matched = [], []
+        for m in all_matches:
             m = dict(m)
-            skills    = m["matched_skills"] or "our shared interests"
-            industry  = m["industry"] or ""
-            offers    = m["offers"] or ""
-            name      = m["startup_name"]
+            if m["student_accepted"] and m["startup_accepted"]:
+                matched.append(m)
+            elif not m["student_accepted"]:
+                pending.append(m)
 
-            wa_msg = (
-                f"Hi {name}! 👋\n\n"
-                f"I found you through OctaNova — we matched based on my skills in {skills}.\n\n"
-                f"I'm really interested in what you're building in {industry} "
-                f"and would love to explore how I can contribute.\n\n"
-                f"Looking forward to connecting!"
-            )
-            email_subj = "OctaNova Match - Let's Connect!"
-            email_body = (
-                f"Hi {name},\n\n"
-                f"I found you through OctaNova. We matched based on my skills in {skills} "
-                f"and your work in {industry}.\n\n"
-                f"I'm looking for {offers} and would love to learn more about what you're building.\n\n"
-                f"Looking forward to connecting!"
-            )
-            m["wa_link"]    = wa_url(m["match_whatsapp"], wa_msg)
-            m["email_link"] = email_url(m["match_email"], email_subj, email_body)
-            rows.append(m)
+        return render_template("matches.html",
+            user_type="student",
+            pending=pending,
+            matched=matched,
+            role_interests=[dict(r) for r in role_interests]
+        )
 
     else:
         profile = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
@@ -399,49 +388,84 @@ def matches():
             conn.close()
             flash("Complete your profile first.", "error")
             return redirect(url_for("startup_profile"))
-        raw = conn.execute("""
+
+        all_matches = conn.execute("""
             SELECT m.id, m.score, m.matched_skills, m.matched_interests, m.matched_wants,
-                   m.student_accepted, m.startup_accepted,
+                   m.student_accepted, m.startup_accepted, m.created_at,
                    st.name, st.skills, st.interests, st.availability,
                    st.email AS match_email, st.whatsapp AS match_whatsapp,
                    st.avatar_url AS match_avatar
             FROM matches m JOIN students st ON m.student_id = st.id
             WHERE m.startup_id = %s AND m.score >= 60
-            ORDER BY m.score DESC
+            ORDER BY m.created_at DESC
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
+
+        # Role interests from students (I'm Interested)
+        role_interests = conn.execute("""
+            SELECT ri.id, ri.startup_accepted, ri.student_accepted, ri.created_at,
+                   r.title, r.role_type,
+                   st.name, st.skills, st.email AS student_email,
+                   st.whatsapp AS student_whatsapp, st.avatar_url
+            FROM role_interests ri
+            JOIN roles r ON ri.role_id = r.id
+            JOIN students st ON ri.student_id = st.id
+            WHERE r.startup_id = %s
+            ORDER BY ri.created_at DESC
+        """, (profile["id"],)).fetchall()
+
         conn.close()
 
-        rows = []
-        for m in raw:
+        pending, matched = [], []
+        for m in all_matches:
             m = dict(m)
-            skills   = m["matched_skills"] or "your background"
-            industry = profile["industry"] or ""
-            offers   = profile["offers"] or ""
-            name     = m["name"]
+            if m["student_accepted"] and m["startup_accepted"]:
+                matched.append(m)
+            elif m["student_accepted"] and not m["startup_accepted"]:
+                pending.append(m)
 
-            wa_msg = (
-                f"Hi {name}! 👋\n\n"
-                f"I found you through OctaNova — we matched because your skills in {skills} "
-                f"are exactly what we need.\n\n"
-                f"We're building in {industry} and we offer {offers}. "
-                f"Would love to chat about working together!"
-            )
-            email_subj = "OctaNova Match - Opportunity for You!"
-            email_body = (
-                f"Hi {name},\n\n"
-                f"I found you through OctaNova. We matched because your skills in {skills} "
-                f"are a great fit for what we're building.\n\n"
-                f"We're a startup in {industry} and we offer {offers}. "
-                f"I'd love to chat about a potential collaboration.\n\n"
-                f"Looking forward to connecting!"
-            )
-            m["wa_link"]    = wa_url(m["match_whatsapp"], wa_msg)
-            m["email_link"] = email_url(m["match_email"], email_subj, email_body)
-            rows.append(m)
+        return render_template("matches.html",
+            user_type="startup",
+            pending=pending,
+            matched=matched,
+            role_interests=[dict(r) for r in role_interests]
+        )
 
-    return render_template("matches.html", matches=rows, user_type=ptype)
+
+@app.route("/decline/<int:match_id>", methods=["POST"])
+@login_required
+def decline_match(match_id):
+    ptype = session.get("profile_type")
+    conn  = get_db()
+    if ptype == "student":
+        # Student dismisses — mark as accepted=0 but set a declined flag by deleting or marking
+        conn.execute("UPDATE matches SET student_accepted=2 WHERE id=%s", (match_id,))
+    else:
+        conn.execute("UPDATE matches SET startup_accepted=2 WHERE id=%s", (match_id,))
+    conn.close()
+    return redirect(url_for("matches"))
+
+
+@app.route("/decline-interest/<int:interest_id>", methods=["POST"])
+@login_required
+def decline_interest(interest_id):
+    conn = get_db()
+    conn.execute("UPDATE role_interests SET startup_accepted=2 WHERE id=%s", (interest_id,))
+    conn.close()
+    return redirect(url_for("matches"))
+
+
+@app.route("/accept-interest/<int:interest_id>", methods=["POST"])
+@login_required
+def accept_interest_match(interest_id):
+    conn = get_db()
+    conn.execute("UPDATE role_interests SET startup_accepted=1 WHERE id=%s", (interest_id,))
+    conn.close()
+    flash("Accepted! Contact details are now revealed.", "success")
+    return redirect(url_for("matches"))
+
+
 
 @app.route("/accept/<int:match_id>", methods=["POST"])
 @login_required

@@ -8,12 +8,148 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
+    <style>
+      .match-tabs {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 20px;
+        padding-bottom: 2px;
+      }
+      .match-tab {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: transparent;
+        cursor: pointer;
+        font-size: 0.84rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        white-space: nowrap;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .match-tab:hover {
+        color: var(--text);
+        border-color: var(--border2);
+      }
+      .match-tab.active {
+        background: var(--grad);
+        color: #fff;
+        border-color: transparent;
+      }
+      .match-tab .tab-count {
+        background: rgba(255, 255, 255, 0.2);
+        color: inherit;
+        font-size: 0.68rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 1px 7px;
+      }
+      .match-tab:not(.active) .tab-count {
+        background: var(--surface3);
+        color: var(--text-dim);
+      }
+      .tab-pane {
+        display: none;
+      }
+      .tab-pane.active {
+        display: block;
+      }
+      .match-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 12px;
+        transition: border-color 0.2s;
+      }
+      .match-card:hover {
+        border-color: var(--border2);
+      }
+      .match-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .match-card-meta {
+        flex: 1;
+        min-width: 0;
+      }
+      .match-card-meta .name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .match-card-meta .sub {
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+      .match-card-body p {
+        font-size: 0.84rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+      .match-card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      .contact-box {
+        background: var(--green-bg);
+        border: 1px solid var(--green-border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-top: 12px;
+      }
+      .contact-box .contact-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--green);
+        margin-bottom: 8px;
+      }
+      .contact-row {
+        font-size: 0.86rem;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .contact-row span {
+        color: var(--text-dim);
+        margin-right: 6px;
+      }
+      .reason-box {
+        background: rgba(59, 130, 246, 0.05);
+        border-left: 2px solid rgba(59, 130, 246, 0.4);
+        border-radius: 0 6px 6px 0;
+        padding: 10px 14px;
+        margin-top: 10px;
+        font-size: 0.82rem;
+        color: var(--text-muted);
+      }
+      .reason-box strong {
+        color: var(--text);
+      }
+      .empty-tab {
+        text-align: center;
+        padding: 48px 20px;
+        color: var(--text-dim);
+        font-size: 0.9rem;
+      }
+    </style>
   </head>
   <body>
     {% include "nav.html" %} {% with messages =
     get_flashed_messages(with_categories=true) %}
     <div class="flash-wrap">
-      {% for c, m in messages %}
+      {% for c,m in messages %}
       <div class="flash {{ c }}">{{ m }}</div>
       {% endfor %}
     </div>
@@ -21,36 +157,36 @@
 
     <div class="page">
       <div class="page-header">
-        <h2>Your Matches</h2>
+        <h2>Matches</h2>
         <a href="/dashboard" class="btn btn-ghost btn-sm">Back to Dashboard</a>
       </div>
 
-      {% if not matches %}
-      <div class="empty-state">
-        <div class="empty-icon">&#128269;</div>
-        <p>
-          We are searching for the best matches for you.<br />You will be
-          notified as soon as a match is found.
-        </p>
-        <a href="/dashboard" class="btn btn-ghost btn-sm">Back to Dashboard</a>
+      <!-- Tabs -->
+      <div class="match-tabs">
+        <button class="match-tab active" onclick="switchTab('pending', this)">
+          Pending <span class="tab-count">{{ pending|length }}</span>
+        </button>
+        <button class="match-tab" onclick="switchTab('matched', this)">
+          Matched <span class="tab-count">{{ matched|length }}</span>
+        </button>
+        <button class="match-tab" onclick="switchTab('interested', this)">
+          Interested <span class="tab-count">{{ role_interests|length }}</span>
+        </button>
       </div>
 
-      {% else %} {% for m in matches %}
-      <div class="card">
-        <div class="card-info" style="flex: 1; min-width: 0">
-          {% if user_type == "student" %}
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              gap: 10px;
-              margin-bottom: 8px;
-            "
-          >
-            {% if m.get("match_logo") %}
+      <!-- PENDING TAB -->
+      <div id="tab-pending" class="tab-pane active">
+        {% if not pending %}
+        <div class="empty-tab">
+          No pending matches right now — check back soon.
+        </div>
+        {% endif %} {% for m in pending %}
+        <div class="match-card">
+          <div class="match-card-header">
+            {% if user_type == "student" %} {% if m.get("match_logo") %}
             <div
               class="logo-square"
-              style="width: 36px; height: 36px; border-radius: 5px"
+              style="width: 40px; height: 40px; border-radius: 6px"
             >
               <img src="{{ m['match_logo'] }}" alt="" />
             </div>
@@ -63,115 +199,218 @@
               {{ m["startup_name"][0].upper() }}
             </div>
             {% endif %}
-            <h3 style="margin: 0">{{ m["startup_name"] }}</h3>
-          </div>
-          <p>Industry: {{ m["industry"] }}</p>
-          <p>Offers: {{ m["offers"] }}</p>
-          <p>
-            {{ m["commitment"] }} hrs/week &middot; {{ m["remote_physical"] |
-            capitalize }}
-          </p>
-          {% else %}
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              gap: 10px;
-              margin-bottom: 8px;
-            "
-          >
-            {% if m.get("match_avatar") %}
+            <div class="match-card-meta">
+              <div class="name">{{ m["startup_name"] }}</div>
+              <div class="sub">
+                {{ m["industry"] }} &middot; {{ m["offers"] }}
+              </div>
+            </div>
+            {% else %} {% if m.get("match_avatar") %}
             <div class="avatar-circle-sm">
               <img src="{{ m['match_avatar'] }}" alt="" />
             </div>
             {% else %}
             <div class="avatar-circle-sm">{{ m["name"][0].upper() }}</div>
             {% endif %}
-            <h3 style="margin: 0">{{ m["name"] }}</h3>
+            <div class="match-card-meta">
+              <div class="name">{{ m["name"] }}</div>
+              <div class="sub">{{ m["skills"] }}</div>
+            </div>
+            {% endif %}
+            <div class="score-ring">{{ m["score"] }}%</div>
           </div>
-          <p>Skills: {{ m["skills"] }}</p>
-          <p>Interests: {{ m["interests"] }}</p>
-          <p>{{ m["availability"] }} hrs/week availability</p>
-          {% endif %} {% if m["matched_skills"] or m["matched_interests"] or
+
+          {% if m["matched_skills"] or m["matched_interests"] or
           m["matched_wants"] %}
-          <div class="match-reason">
-            <p>Why you matched</p>
-            <ul>
-              {% if m["matched_skills"] %}
-              <li>Skills in <strong>{{ m["matched_skills"] }}</strong></li>
-              {% endif %} {% if m["matched_interests"] %}
-              <li>Interest in <strong>{{ m["matched_interests"] }}</strong></li>
-              {% endif %} {% if m["matched_wants"] %} {% if user_type ==
-              "student" %}
-              <li>
-                This startup offers <strong>{{ m["matched_wants"] }}</strong> -
-                what you want
-              </li>
-              {% else %}
-              <li>
-                This student wants <strong>{{ m["matched_wants"] }}</strong> -
-                what you offer
-              </li>
-              {% endif %} {% endif %}
-            </ul>
+          <div class="reason-box">
+            {% if m["matched_skills"] %}Skills in
+            <strong>{{ m["matched_skills"] }}</strong>. {% endif %} {% if
+            m["matched_interests"] %}Interest in
+            <strong>{{ m["matched_interests"] }}</strong>. {% endif %} {% if
+            m["matched_wants"] %}Aligned on
+            <strong>{{ m["matched_wants"] }}</strong>.{% endif %}
           </div>
           {% else %}
-          <div class="match-reason">
-            <p>Why you matched</p>
-            <ul>
-              <li>
-                This match was selected based on your overall profile
-                compatibility.
-              </li>
-            </ul>
+          <div class="reason-box">
+            Selected based on overall profile compatibility.
           </div>
-          {% endif %} {% if m["student_accepted"] and m["startup_accepted"] %}
-          {% set other_name = m["startup_name"] if user_type == "student" else
-          m["name"] %}
-          <div class="contact-reveal">
-            <div class="contact-reveal-header">
-              Connected - contact details for {{ other_name }}
+          {% endif %}
+
+          <div class="match-card-actions">
+            <form method="POST" action="/accept/{{ m['id'] }}">
+              <button class="btn btn-success btn-sm">Accept Match</button>
+            </form>
+            <form method="POST" action="/decline/{{ m['id'] }}">
+              <button class="btn btn-ghost btn-sm">Not Interested</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- MATCHED TAB -->
+      <div id="tab-matched" class="tab-pane">
+        {% if not matched %}
+        <div class="empty-tab">
+          No confirmed matches yet — accept a pending match to get started.
+        </div>
+        {% endif %} {% for m in matched %}
+        <div class="match-card">
+          <div class="match-card-header">
+            {% if user_type == "student" %} {% if m.get("match_logo") %}
+            <div
+              class="logo-square"
+              style="width: 40px; height: 40px; border-radius: 6px"
+            >
+              <img src="{{ m['match_logo'] }}" alt="" />
             </div>
-            <div class="contact-details">
-              {% if m["match_email"] %}
-              <div class="contact-detail-item">
-                <span class="contact-detail-label">Email</span>
-                <span class="contact-detail-value">{{ m["match_email"] }}</span>
+            {% elif m.get("match_avatar") %}
+            <div class="avatar-circle-sm">
+              <img src="{{ m['match_avatar'] }}" alt="" />
+            </div>
+            {% else %}
+            <div class="avatar-circle-sm">
+              {{ m["startup_name"][0].upper() }}
+            </div>
+            {% endif %}
+            <div class="match-card-meta">
+              <div class="name">{{ m["startup_name"] }}</div>
+              <div class="sub">
+                {{ m["industry"] }} &middot; {{ m["remote_physical"] |
+                capitalize }}
               </div>
-              {% endif %} {% if m["match_whatsapp"] %}
-              <div class="contact-detail-item">
-                <span class="contact-detail-label">WhatsApp</span>
-                <span class="contact-detail-value"
-                  >{{ m["match_whatsapp"] }}</span
-                >
+            </div>
+            {% else %} {% if m.get("match_avatar") %}
+            <div class="avatar-circle-sm">
+              <img src="{{ m['match_avatar'] }}" alt="" />
+            </div>
+            {% else %}
+            <div class="avatar-circle-sm">{{ m["name"][0].upper() }}</div>
+            {% endif %}
+            <div class="match-card-meta">
+              <div class="name">{{ m["name"] }}</div>
+              <div class="sub">{{ m["skills"] }}</div>
+            </div>
+            {% endif %}
+            <div class="score-ring">{{ m["score"] }}%</div>
+          </div>
+
+          <div class="contact-box">
+            <div class="contact-label">Connected — contact details</div>
+            {% if m["match_email"] %}
+            <div class="contact-row">
+              <span>Email</span>{{ m["match_email"] }}
+            </div>
+            {% endif %} {% if m["match_whatsapp"] %}
+            <div class="contact-row">
+              <span>WhatsApp</span>{{ m["match_whatsapp"] }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- INTERESTED TAB -->
+      <div id="tab-interested" class="tab-pane">
+        {% if not role_interests %}
+        <div class="empty-tab">No interest requests yet.</div>
+        {% endif %} {% for i in role_interests %}
+        <div class="match-card">
+          <div class="match-card-header">
+            {% if i.get("logo_url") %}
+            <div
+              class="logo-square"
+              style="width: 40px; height: 40px; border-radius: 6px"
+            >
+              <img src="{{ i['logo_url'] }}" alt="" />
+            </div>
+            {% elif i.get("avatar_url") %}
+            <div class="avatar-circle-sm">
+              <img src="{{ i['avatar_url'] }}" alt="" />
+            </div>
+            {% else %}
+            <div class="avatar-circle-sm">
+              {{ i["startup_name"][0].upper() if user_type == "student" else
+              i["name"][0].upper() }}
+            </div>
+            {% endif %}
+            <div class="match-card-meta">
+              {% if user_type == "student" %}
+              <div class="name">{{ i["startup_name"] }}</div>
+              <div class="sub">
+                {{ i["title"] }} &middot; {{ i["role_type"] | capitalize }}
               </div>
+              {% else %}
+              <div class="name">{{ i["name"] }}</div>
+              <div class="sub">Interested in: {{ i["title"] }}</div>
               {% endif %}
             </div>
           </div>
-          {% elif (user_type == "student" and m["student_accepted"]) or
-          (user_type == "startup" and m["startup_accepted"]) %}
-          <p style="font-size: 0.82rem; color: var(--yellow); margin-top: 10px">
-            Waiting for the other side to accept...
-          </p>
-          {% endif %}
-        </div>
 
-        <div class="card-actions">
-          <div class="score-ring" title="Match score">{{ m["score"] }}%</div>
-          {% if m["student_accepted"] and m["startup_accepted"] %}
-          <span class="badge badge-green">Connected</span>
-          {% elif (user_type == "student" and not m["student_accepted"]) or
-          (user_type == "startup" and not m["startup_accepted"]) %}
-          <form method="POST" action="/accept/{{ m['id'] }}">
-            <button class="btn btn-success btn-sm">Accept</button>
-          </form>
-          <span class="badge badge-purple">New</span>
+          {% if user_type == "student" %} {% if i["startup_accepted"] == 1 %}
+          <div class="contact-box">
+            <div class="contact-label">Startup accepted — contact details</div>
+            {% if i.get("student_email") %}
+            <div class="contact-row">
+              <span>Email</span>{{ i["student_email"] }}
+            </div>
+            {% endif %} {% if i.get("student_whatsapp") %}
+            <div class="contact-row">
+              <span>WhatsApp</span>{{ i["student_whatsapp"] }}
+            </div>
+            {% endif %}
+          </div>
+          {% elif i["startup_accepted"] == 2 %}
+          <span
+            class="badge badge-gray"
+            style="margin-top: 8px; display: inline-flex"
+            >Startup declined</span
+          >
           {% else %}
-          <span class="badge badge-yellow">Pending</span>
-          {% endif %}
+          <span
+            class="badge badge-yellow"
+            style="margin-top: 8px; display: inline-flex"
+            >Waiting for startup response</span
+          >
+          {% endif %} {% else %} {% if i["startup_accepted"] == 1 %}
+          <span
+            class="badge badge-green"
+            style="margin-top: 8px; display: inline-flex"
+            >Accepted</span
+          >
+          {% elif i["startup_accepted"] == 2 %}
+          <span
+            class="badge badge-gray"
+            style="margin-top: 8px; display: inline-flex"
+            >Declined</span
+          >
+          {% else %}
+          <div class="match-card-actions">
+            <form method="POST" action="/accept-interest/{{ i['id'] }}">
+              <button class="btn btn-success btn-sm">Accept</button>
+            </form>
+            <form method="POST" action="/decline-interest/{{ i['id'] }}">
+              <button class="btn btn-ghost btn-sm">Decline</button>
+            </form>
+          </div>
+          {% endif %} {% endif %}
         </div>
+        {% endfor %}
       </div>
-      {% endfor %} {% endif %}
     </div>
+
+    <script>
+      function switchTab(name, btn) {
+        document
+          .querySelectorAll(".tab-pane")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".match-tab")
+          .forEach((b) => b.classList.remove("active"));
+        document.getElementById("tab-" + name).classList.add("active");
+        btn.classList.add("active");
+      }
+    </script>
   </body>
 </html>
