@@ -39,7 +39,32 @@
       <div class="card">
         <div class="card-info" style="flex: 1; min-width: 0">
           {% if user_type == "student" %}
-          <h3>{{ m["startup_name"] }}</h3>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              margin-bottom: 8px;
+            "
+          >
+            {% if m.get("match_logo") %}
+            <div
+              class="logo-square"
+              style="width: 36px; height: 36px; border-radius: 5px"
+            >
+              <img src="{{ m['match_logo'] }}" alt="" />
+            </div>
+            {% elif m.get("match_avatar") %}
+            <div class="avatar-circle-sm">
+              <img src="{{ m['match_avatar'] }}" alt="" />
+            </div>
+            {% else %}
+            <div class="avatar-circle-sm">
+              {{ m["startup_name"][0].upper() }}
+            </div>
+            {% endif %}
+            <h3 style="margin: 0">{{ m["startup_name"] }}</h3>
+          </div>
           <p>Industry: {{ m["industry"] }}</p>
           <p>Offers: {{ m["offers"] }}</p>
           <p>
@@ -47,7 +72,23 @@
             capitalize }}
           </p>
           {% else %}
-          <h3>{{ m["name"] }}</h3>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              margin-bottom: 8px;
+            "
+          >
+            {% if m.get("match_avatar") %}
+            <div class="avatar-circle-sm">
+              <img src="{{ m['match_avatar'] }}" alt="" />
+            </div>
+            {% else %}
+            <div class="avatar-circle-sm">{{ m["name"][0].upper() }}</div>
+            {% endif %}
+            <h3 style="margin: 0">{{ m["name"] }}</h3>
+          </div>
           <p>Skills: {{ m["skills"] }}</p>
           <p>Interests: {{ m["interests"] }}</p>
           <p>{{ m["availability"] }} hrs/week availability</p>

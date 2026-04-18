@@ -67,7 +67,23 @@
       <!-- Profile card -->
       <div class="profile-card">
         {% if ptype == "student" %}
-        <h3>🎓 {{ profile["name"] }}</h3>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+          "
+        >
+          <div class="avatar-circle-sm">
+            {% if profile.avatar_url %}<img
+              src="{{ profile.avatar_url }}"
+              alt=""
+            />
+            {% else %}{{ profile["name"][0].upper() }}{% endif %}
+          </div>
+          <h3 style="margin: 0">{{ profile["name"] }}</h3>
+        </div>
         <div class="profile-grid">
           <div class="profile-item">
             <label>Email</label>
@@ -99,7 +115,32 @@
           </div>
         </div>
         {% else %}
-        <h3>🚀 {{ profile["startup_name"] }}</h3>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+          "
+        >
+          {% if profile.logo_url %}
+          <div
+            class="logo-square"
+            style="width: 40px; height: 40px; border-radius: 6px"
+          >
+            <img src="{{ profile.logo_url }}" alt="" />
+          </div>
+          {% elif profile.avatar_url %}
+          <div class="avatar-circle-sm">
+            <img src="{{ profile.avatar_url }}" alt="" />
+          </div>
+          {% else %}
+          <div class="avatar-circle-sm">
+            {{ profile["startup_name"][0].upper() }}
+          </div>
+          {% endif %}
+          <h3 style="margin: 0">{{ profile["startup_name"] }}</h3>
+        </div>
         <div class="profile-grid">
           <div class="profile-item">
             <label>Email</label>

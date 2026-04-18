@@ -83,6 +83,7 @@ def init_db():
         interests TEXT NOT NULL,
         wants TEXT NOT NULL,
         availability INTEGER NOT NULL,
+        avatar_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
@@ -97,6 +98,8 @@ def init_db():
         offers TEXT NOT NULL,
         commitment INTEGER NOT NULL,
         remote_physical VARCHAR(20) NOT NULL,
+        avatar_url VARCHAR(500),
+        logo_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
 
@@ -123,6 +126,17 @@ def init_db():
         expires_at TIMESTAMP NOT NULL,
         used INTEGER DEFAULT 0
     )""")
+
+    # Add avatar/logo columns if they don't exist (migration for existing DBs)
+    for sql in [
+        "ALTER TABLE students ADD COLUMN avatar_url VARCHAR(500)",
+        "ALTER TABLE startups ADD COLUMN avatar_url VARCHAR(500)",
+        "ALTER TABLE startups ADD COLUMN logo_url VARCHAR(500)",
+    ]:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass
 
     existing = conn.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     if not existing:

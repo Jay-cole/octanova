@@ -16,6 +16,27 @@
     <div class="form-wrap">
       <h2>{{ "Edit" if profile else "Complete" }} Student Profile</h2>
       <p class="form-sub">This info is used for matching and shown to startups when you connect.</p>
+
+      <!-- Avatar upload -->
+      <div class="avatar-section">
+        <div class="avatar-circle" id="avatarCircle" onclick="document.getElementById('avatarInput').click()">
+          {% if profile and profile.avatar_url %}
+            <img src="{{ profile.avatar_url }}" id="avatarImg" alt="Profile photo">
+          {% else %}
+            <span id="avatarInitials">{{ profile.name[0].upper() if profile and profile.name else '?' }}</span>
+          {% endif %}
+        </div>
+        <div class="avatar-actions">
+          <input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(this,'avatar')">
+          <button type="button" class="btn btn-ghost btn-sm avatar-upload-btn" onclick="document.getElementById('avatarInput').click()">Upload photo</button>
+          {% if profile and profile.avatar_url %}
+          <button type="button" class="btn btn-ghost btn-sm avatar-upload-btn" onclick="removeAvatar('avatar')">Remove photo</button>
+          {% endif %}
+          <span class="avatar-error" id="avatarError"></span>
+        </div>
+      </div>
+      <div class="form-divider"></div>
+
       <form method="POST">
 
         <div class="section-label">Personal Info</div>
@@ -85,5 +106,49 @@
       </form>
     </div>
   </div>
+
+  <script>
+    function uploadAvatar(input, field) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        document.getElementById('avatarError').textContent = 'Upload failed. Please try a smaller image.';
+        return;
+      }
+      document.getElementById('avatarError').textContent = '';
+      const btn = document.querySelector('.avatar-upload-btn');
+      btn.textContent = 'Uploading...';
+      btn.disabled = true;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('field', field);
+      fetch('/upload-avatar', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            document.getElementById('avatarError').textContent = data.error;
+          } else {
+            const circle = document.getElementById('avatarCircle');
+            circle.innerHTML = `<img src="${data.url}" id="avatarImg" alt="Profile photo">`;
+          }
+          btn.textContent = 'Upload photo';
+          btn.disabled = false;
+        })
+        .catch(() => {
+          document.getElementById('avatarError').textContent = 'Upload failed. Please try a smaller image.';
+          btn.textContent = 'Upload photo';
+          btn.disabled = false;
+        });
+    }
+    function removeAvatar(field) {
+      const fd = new FormData();
+      fd.append('field', field);
+      fetch('/remove-avatar', { method: 'POST', body: fd })
+        .then(() => {
+          const initials = '{{ profile.name[0].upper() if profile and profile.name else "?" }}';
+          document.getElementById('avatarCircle').innerHTML = `<span id="avatarInitials">${initials}</span>`;
+        });
+    }
+  </script>
 </body>
 </html>

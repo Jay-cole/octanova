@@ -356,7 +356,8 @@ def matches():
             SELECT m.id, m.score, m.matched_skills, m.matched_interests, m.matched_wants,
                    m.student_accepted, m.startup_accepted,
                    s.startup_name, s.industry, s.offers, s.commitment, s.remote_physical,
-                   s.email AS match_email, s.whatsapp AS match_whatsapp
+                   s.email AS match_email, s.whatsapp AS match_whatsapp,
+                   s.avatar_url AS match_avatar, s.logo_url AS match_logo
             FROM matches m JOIN startups s ON m.startup_id = s.id
             WHERE m.student_id = %s AND m.score >= 60
             ORDER BY m.score DESC
@@ -402,7 +403,8 @@ def matches():
             SELECT m.id, m.score, m.matched_skills, m.matched_interests, m.matched_wants,
                    m.student_accepted, m.startup_accepted,
                    st.name, st.skills, st.interests, st.availability,
-                   st.email AS match_email, st.whatsapp AS match_whatsapp
+                   st.email AS match_email, st.whatsapp AS match_whatsapp,
+                   st.avatar_url AS match_avatar
             FROM matches m JOIN students st ON m.student_id = st.id
             WHERE m.startup_id = %s AND m.score >= 60
             ORDER BY m.score DESC
@@ -525,7 +527,69 @@ def manual_match():
     conn.close()
     return redirect(url_for("admin"))
 
-@app.route("/admin/delete_student/<int:student_id>", methods=["POST"])
+@app.route("/upload-avatar", methods=["POST"])
+@login_required
+def upload_avatar():
+    import cloudinary
+    import cloudinary.uploader
+    cloudinary.config(
+        cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.environ.get("CLOUDINARY_API_KEY"),
+        api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    )
+    ptype   = session.get("profile_type")
+    uid     = session["user_id"]
+    field   = request.form.get("field", "avatar")  # avatar or logo
+    file    = request.files.get("file")
+
+    if not file:
+        return {"error": "No file provided"}, 400
+
+    if file.content_length and file.content_length > 2 * 1024 * 1024:
+        return {"error": "File too large. Max 2MB."}, 400
+
+    try:
+        result = cloudinary.uploader.upload(
+            file,
+            folder="octanova-avatars",
+            transformation=[{"width": 400, "height": 400, "crop": "fill", "gravity": "face"}],
+            allowed_formats=["jpg", "jpeg", "png", "webp"],
+        )
+        url = result["secure_url"]
+    except Exception as e:
+        print(f"[cloudinary] upload error: {e}")
+        return {"error": "Upload failed. Please try a smaller image."}, 500
+
+    conn = get_db()
+    if ptype == "student":
+        conn.execute("UPDATE students SET avatar_url=%s WHERE user_id=%s", (url, uid))
+    else:
+        if field == "logo":
+            conn.execute("UPDATE startups SET logo_url=%s WHERE user_id=%s", (url, uid))
+        else:
+            conn.execute("UPDATE startups SET avatar_url=%s WHERE user_id=%s", (url, uid))
+    conn.close()
+    return {"url": url}, 200
+
+
+@app.route("/remove-avatar", methods=["POST"])
+@login_required
+def remove_avatar():
+    ptype = session.get("profile_type")
+    uid   = session["user_id"]
+    field = request.form.get("field", "avatar")
+    conn  = get_db()
+    if ptype == "student":
+        conn.execute("UPDATE students SET avatar_url=NULL WHERE user_id=%s", (uid,))
+    else:
+        if field == "logo":
+            conn.execute("UPDATE startups SET logo_url=NULL WHERE user_id=%s", (uid,))
+        else:
+            conn.execute("UPDATE startups SET avatar_url=NULL WHERE user_id=%s", (uid,))
+    conn.close()
+    return {"ok": True}, 200
+
+
 @admin_required
 def delete_student(student_id):
     conn = get_db()

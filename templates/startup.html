@@ -16,6 +16,41 @@
     <div class="form-wrap">
       <h2>{{ "Edit" if profile else "Complete" }} Startup Profile</h2>
       <p class="form-sub">This info is used for matching and shown to students when you connect.</p>
+
+      <!-- Avatar + Logo upload -->
+      <div class="avatar-section">
+        <div class="avatar-circle" id="avatarCircle" onclick="document.getElementById('avatarInput').click()">
+          {% if profile and profile.avatar_url %}
+            <img src="{{ profile.avatar_url }}" alt="Team photo">
+          {% else %}
+            <span>{{ profile.startup_name[0].upper() if profile and profile.startup_name else '?' }}</span>
+          {% endif %}
+        </div>
+        <div class="avatar-actions">
+          <input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(this,'avatar')">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('avatarInput').click()">Team photo</button>
+          {% if profile and profile.avatar_url %}
+          <button type="button" class="btn btn-ghost btn-sm" onclick="removeAvatar('avatar')">Remove</button>
+          {% endif %}
+        </div>
+        <div class="logo-square" id="logoSquare" onclick="document.getElementById('logoInput').click()" style="cursor:pointer">
+          {% if profile and profile.logo_url %}
+            <img src="{{ profile.logo_url }}" alt="Logo">
+          {% else %}
+            <span style="font-size:.7rem;color:var(--text-dim)">Logo</span>
+          {% endif %}
+        </div>
+        <div class="avatar-actions">
+          <input type="file" id="logoInput" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(this,'logo')">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('logoInput').click()">Company logo</button>
+          {% if profile and profile.logo_url %}
+          <button type="button" class="btn btn-ghost btn-sm" onclick="removeAvatar('logo')">Remove</button>
+          {% endif %}
+        </div>
+      </div>
+      <span class="avatar-error" id="avatarError"></span>
+      <div class="form-divider"></div>
+
       <form method="POST">
 
         <div class="section-label">Startup Info</div>
@@ -84,5 +119,47 @@
       </form>
     </div>
   </div>
+
+  <script>
+    function uploadAvatar(input, field) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        document.getElementById('avatarError').textContent = 'Upload failed. Please try a smaller image.';
+        return;
+      }
+      document.getElementById('avatarError').textContent = '';
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('field', field);
+      fetch('/upload-avatar', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            document.getElementById('avatarError').textContent = data.error;
+          } else if (field === 'logo') {
+            document.getElementById('logoSquare').innerHTML = `<img src="${data.url}" alt="Logo">`;
+          } else {
+            document.getElementById('avatarCircle').innerHTML = `<img src="${data.url}" alt="Team photo">`;
+          }
+        })
+        .catch(() => {
+          document.getElementById('avatarError').textContent = 'Upload failed. Please try a smaller image.';
+        });
+    }
+    function removeAvatar(field) {
+      const fd = new FormData();
+      fd.append('field', field);
+      fetch('/remove-avatar', { method: 'POST', body: fd })
+        .then(() => {
+          if (field === 'logo') {
+            document.getElementById('logoSquare').innerHTML = '<span style="font-size:.7rem;color:var(--text-dim)">Logo</span>';
+          } else {
+            const init = '{{ profile.startup_name[0].upper() if profile and profile.startup_name else "?" }}';
+            document.getElementById('avatarCircle').innerHTML = `<span>${init}</span>`;
+          }
+        });
+    }
+  </script>
 </body>
 </html>
