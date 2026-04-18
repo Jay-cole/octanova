@@ -451,7 +451,36 @@ def accept_match(match_id):
     else:
         conn.execute("UPDATE matches SET startup_accepted=1 WHERE id=%s", (match_id,))
     conn.commit()
+
+    # Check if now mutually accepted — send emails if so
+    match = conn.execute("""
+        SELECT m.student_accepted, m.startup_accepted,
+               st.name AS student_name, st.email AS student_email, st.whatsapp AS student_whatsapp,
+               s.startup_name, s.email AS startup_email, s.whatsapp AS startup_whatsapp
+        FROM matches m
+        JOIN students st ON m.student_id = st.id
+        JOIN startups s  ON m.startup_id = s.id
+        WHERE m.id=%s
+    """, (match_id,)).fetchone()
+
     conn.close()
+
+    if match and match["student_accepted"] and match["startup_accepted"]:
+        try:
+            from mailer import send_mutual_match_email
+            send_mutual_match_email(
+                student_email=match["student_email"],
+                student_name=match["student_name"],
+                startup_email=match["startup_email"],
+                startup_name=match["startup_name"],
+                startup_contact_email=match["startup_email"],
+                startup_whatsapp=match["startup_whatsapp"],
+                student_contact_email=match["student_email"],
+                student_whatsapp=match["student_whatsapp"],
+            )
+        except Exception as e:
+            print(f"[accept_match] mutual email error: {e}")
+
     flash("Match accepted!", "success")
     return redirect(url_for("matches"))
 

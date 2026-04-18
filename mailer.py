@@ -161,3 +161,69 @@ def send_reset_email(to_email, reset_url):
     </div>
     """
     _send_via_resend(to_email, subject, html)
+
+
+def send_mutual_match_email(
+    student_email, student_name,
+    startup_email, startup_name,
+    startup_contact_email, startup_whatsapp,
+    student_contact_email, student_whatsapp
+):
+    """Send mutual match notification to both student and startup."""
+
+    # Email to student
+    student_html = f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#f1f5f9;padding:40px 0">
+      <div style="max-width:520px;margin:0 auto;background:#111111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
+        <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:28px;text-align:center">
+          <h1 style="margin:0;font-size:1.2rem;color:#fff;font-weight:700">OctaNova</h1>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:.85rem">Opportunity Engine</p>
+        </div>
+        <div style="padding:32px">
+          <h2 style="margin:0 0 10px;font-size:1.1rem;color:#f1f5f9">You have a new match!</h2>
+          <p style="color:#94a3b8;margin:0 0 20px;font-size:.92rem;line-height:1.6">
+            Hi {student_name}, you and <strong style="color:#f1f5f9">{startup_name}</strong> have both accepted each other on OctaNova. It's a mutual match!
+          </p>
+          <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:16px;margin-bottom:20px">
+            <p style="margin:0 0 8px;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Their contact details</p>
+            {f'<p style="margin:0 0 6px;font-size:.9rem;color:#f1f5f9">Email: <strong>{startup_contact_email}</strong></p>' if startup_contact_email else ''}
+            {f'<p style="margin:0;font-size:.9rem;color:#f1f5f9">WhatsApp: <strong>{startup_whatsapp}</strong></p>' if startup_whatsapp else ''}
+          </div>
+          <p style="color:#94a3b8;font-size:.88rem;line-height:1.6">Reach out and introduce yourself — they're expecting to hear from you.</p>
+        </div>
+        <div style="padding:16px 32px;border-top:1px solid #2a2a2a;text-align:center">
+          <p style="margin:0;font-size:.75rem;color:#6b7280">OctaNova Opportunity Engine</p>
+        </div>
+      </div>
+    </div>
+    """
+
+    # Email to startup
+    startup_html = f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#f1f5f9;padding:40px 0">
+      <div style="max-width:520px;margin:0 auto;background:#111111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
+        <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:28px;text-align:center">
+          <h1 style="margin:0;font-size:1.2rem;color:#fff;font-weight:700">OctaNova</h1>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:.85rem">Opportunity Engine</p>
+        </div>
+        <div style="padding:32px">
+          <h2 style="margin:0 0 10px;font-size:1.1rem;color:#f1f5f9">A student matched with you!</h2>
+          <p style="color:#94a3b8;margin:0 0 20px;font-size:.92rem;line-height:1.6">
+            Hi {startup_name}, you and <strong style="color:#f1f5f9">{student_name}</strong> have both accepted each other on OctaNova. It's a mutual match!
+          </p>
+          <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:16px;margin-bottom:20px">
+            <p style="margin:0 0 8px;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.08em">Their contact details</p>
+            {f'<p style="margin:0 0 6px;font-size:.9rem;color:#f1f5f9">Email: <strong>{student_contact_email}</strong></p>' if student_contact_email else ''}
+            {f'<p style="margin:0;font-size:.9rem;color:#f1f5f9">WhatsApp: <strong>{student_whatsapp}</strong></p>' if student_whatsapp else ''}
+          </div>
+          <p style="color:#94a3b8;font-size:.88rem;line-height:1.6">This student is interested in working with you — expect a message from them soon.</p>
+        </div>
+        <div style="padding:16px 32px;border-top:1px solid #2a2a2a;text-align:center">
+          <p style="margin:0;font-size:.75rem;color:#6b7280">OctaNova Opportunity Engine</p>
+        </div>
+      </div>
+    </div>
+    """
+
+    _send_via_resend(student_email, "You have a new match on Octanova!", student_html)
+    _send_via_resend(startup_email, "A student matched with you on Octanova!", startup_html)
