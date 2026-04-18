@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Post a Role - OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c,m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="form-page">
+      <div class="form-wrap" style="max-width: 600px">
+        <h2>Post a Role</h2>
+        <p class="form-sub">Find the right student for your startup.</p>
+
+        <form method="POST" enctype="multipart/form-data">
+          <div class="section-label">Basic Info</div>
+          <div class="field">
+            <label>Role Title</label>
+            <input
+              type="text"
+              name="title"
+              placeholder="e.g. Frontend Developer Intern"
+              required
+            />
+          </div>
+          <div class="field">
+            <label>Role Type</label>
+            <select name="role_type" required>
+              <option value="internship">Internship</option>
+              <option value="part-time">Part-time</option>
+              <option value="project-based">Project-based</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Duration</label>
+            <input
+              type="text"
+              name="duration"
+              placeholder="e.g. 3 months, flexible"
+            />
+          </div>
+          <div class="field">
+            <label>Location Type</label>
+            <select name="location_type">
+              <option value="remote">Remote</option>
+              <option value="in-person">In-person</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Is this role paid?</label>
+            <div class="role-toggle">
+              <label class="role-option">
+                <input type="radio" name="is_paid" value="yes" /> Yes, paid
+              </label>
+              <label class="role-option">
+                <input type="radio" name="is_paid" value="no" checked /> Unpaid
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <label
+              >Application Deadline <span class="hint">(optional)</span></label
+            >
+            <input type="date" name="deadline" />
+          </div>
+
+          <div class="form-divider"></div>
+          <div class="section-label">Requirements</div>
+          <div class="field">
+            <label
+              >Skills Required
+              <span class="hint">(comma-separated)</span></label
+            >
+            <input
+              type="text"
+              name="skills_required"
+              placeholder="e.g. Python, UI design, marketing"
+            />
+          </div>
+          <div class="field">
+            <label>Experience Level</label>
+            <select name="experience_level">
+              <option value="any">Any</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+            </select>
+          </div>
+          <div class="field">
+            <label
+              >Role Description
+              <span class="hint">(max 300 characters)</span></label
+            >
+            <textarea
+              name="description"
+              rows="4"
+              maxlength="300"
+              placeholder="What will the student actually do?"
+            ></textarea>
+          </div>
+
+          <div class="form-divider"></div>
+          <div class="section-label">
+            Media <span class="hint">(optional)</span>
+          </div>
+          <div class="field">
+            <label
+              >Flier / Photo
+              <span class="hint">(jpg, png, webp — max 5MB)</span></label
+            >
+            <input
+              type="file"
+              name="image"
+              accept="image/jpeg,image/png,image/webp"
+              id="imageInput"
+              onchange="previewFile(this, 'imagePreview')"
+            />
+            <img
+              id="imagePreview"
+              src=""
+              alt=""
+              style="
+                display: none;
+                margin-top: 10px;
+                max-width: 100%;
+                border-radius: 8px;
+                max-height: 200px;
+                object-fit: cover;
+              "
+            />
+          </div>
+          <div class="field">
+            <label
+              >Intro Video
+              <span class="hint">(mp4, mov — max 50MB)</span></label
+            >
+            <input
+              type="file"
+              name="video"
+              accept="video/mp4,video/quicktime"
+              id="videoInput"
+              onchange="previewFile(this, 'videoPreview')"
+            />
+            <video
+              id="videoPreview"
+              controls
+              style="
+                display: none;
+                margin-top: 10px;
+                max-width: 100%;
+                border-radius: 8px;
+                max-height: 200px;
+              "
+            ></video>
+          </div>
+
+          <div class="form-divider"></div>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            style="width: 100%; justify-content: center"
+          >
+            Post Role
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function previewFile(input, previewId) {
+        const file = input.files[0];
+        if (!file) return;
+        const preview = document.getElementById(previewId);
+        const url = URL.createObjectURL(file);
+        if (previewId === "videoPreview") {
+          preview.src = url;
+        } else {
+          preview.src = url;
+        }
+        preview.style.display = "block";
+      }
+    </script>
+  </body>
+</html>

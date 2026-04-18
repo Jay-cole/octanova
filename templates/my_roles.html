@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Roles - OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c,m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="page">
+      <div class="page-header">
+        <h2>My Roles</h2>
+        <a href="/roles/post" class="btn btn-primary btn-sm">+ Post a Role</a>
+      </div>
+
+      {% if not roles %}
+      <div class="empty-state">
+        <div class="empty-icon">&#128196;</div>
+        <p>You haven't posted any roles yet.</p>
+        <a href="/roles/post" class="btn btn-primary">Post Your First Role</a>
+      </div>
+      {% endif %} {% for r in roles %}
+      <div class="card" style="flex-direction: column; align-items: stretch">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+          "
+        >
+          <div>
+            <div style="font-size: 1rem; font-weight: 700; color: var(--text)">
+              {{ r["title"] }}
+            </div>
+            <div
+              style="
+                font-size: 0.82rem;
+                color: var(--text-dim);
+                margin-top: 2px;
+              "
+            >
+              {{ r["role_type"] | capitalize }} &middot; {{ r["location_type"] |
+              capitalize }} {% if r["is_paid"] %} &middot; Paid{% endif %}
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center">
+            {% if r["status"] == "active" %}
+            <span class="badge badge-green">Active</span>
+            <form method="POST" action="/roles/close/{{ r['id'] }}">
+              <button class="btn btn-ghost btn-sm">Close Role</button>
+            </form>
+            {% else %}
+            <span class="badge badge-gray">Closed</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <p
+          style="
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+          "
+        >
+          {{ r["interest_count"] }} student{{ 's' if r["interest_count"] != 1 }}
+          interested
+        </p>
+
+        {% if r["interests"] %}
+        <div style="border-top: 1px solid var(--border); padding-top: 14px">
+          <p
+            style="
+              font-size: 0.72rem;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              color: var(--text-dim);
+              margin-bottom: 10px;
+            "
+          >
+            Interested Students
+          </p>
+          {% for i in r["interests"] %}
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 10px 0;
+              border-bottom: 1px solid var(--border);
+              flex-wrap: wrap;
+              gap: 8px;
+            "
+          >
+            <div style="display: flex; align-items: center; gap: 10px">
+              {% if i.get("avatar_url") %}
+              <div class="avatar-circle-sm">
+                <img src="{{ i['avatar_url'] }}" alt="" />
+              </div>
+              {% else %}
+              <div class="avatar-circle-sm">{{ i["name"][0].upper() }}</div>
+              {% endif %}
+              <div>
+                <div
+                  style="
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    color: var(--text);
+                  "
+                >
+                  {{ i["name"] }}
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-dim)">
+                  {{ i["skills"] }}
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center">
+              {% if i["startup_accepted"] %}
+              <span class="badge badge-green">Accepted</span>
+              {% if i["student_accepted"] %}
+              <div style="font-size: 0.8rem; color: var(--text-muted)">
+                Email: {{ i["student_email"] }}<br />
+                {% if i["whatsapp"] %}WhatsApp: {{ i["whatsapp"] }}{% endif %}
+              </div>
+              {% endif %} {% else %}
+              <form method="POST" action="/roles/accept-interest/{{ i['id'] }}">
+                <button class="btn btn-success btn-sm">Accept</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </body>
+</html>

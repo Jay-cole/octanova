@@ -664,10 +664,317 @@ def setup_admin():
     return "Admin created: admin@octanova.com / admin123", 200
 
 
-@app.route("/setup-cleanup")
-@admin_required
-def setup_cleanup():
-    """Remove matches with score < 60 (created by old request-match experiments)."""
+    conn.close()
+    return "Admin created: admin@octanova.com / admin123", 200
+
+
+# ── Roles ─────────────────────────────────────────────────────────────────────
+
+def _cloudinary_upload(file, folder, resource_type="image"):
+    import cloudinary, cloudinary.uploader
+    cloudinary.config(
+        cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.environ.get("CLOUDINARY_API_KEY"),
+        api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    )
+    result = cloudinary.uploader.upload(file, folder=folder, resource_type=resource_type)
+    return result["secure_url"]
+
+
+@app.route("/roles/post", methods=["GET", "POST"])
+@login_required
+def post_role():
+    if session.get("profile_type") != "startup":
+        return redirect(url_for("dashboard"))
+    uid  = session["user_id"]
+    conn = get_db()
+    startup = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
+    if not startup:
+        conn.close()
+        flash("Complete your startup profile first.", "error")
+        return redirect(url_for("startup_profile"))
+
+    if request.method == "POST":
+        title       = request.form.get("title", "").strip()
+        role_type   = request.form.get("role_type", "internship")
+        duration    = request.form.get("duration", "").strip()
+        description = request.form.get("description", "").strip()[:300]
+        skills_req  = request.form.get("skills_required", "").strip()
+        exp_level   = request.form.get("experience_level", "any")
+        loc_type    = request.form.get("location_type", "remote")
+        is_paid     = 1 if request.form.get("is_paid") == "yes" else 0
+        deadline    = request.form.get("deadline") or None
+
+        image_url = None
+        video_url = None
+
+        if "image" in request.files:
+            img = request.files["image"]
+            if img and img.filename:
+                try:
+                    image_url = _cloudinary_upload(img, "octanova-roles", "image")
+                except Exception as e:
+                    print(f"[cloudinary] image upload error: {e}")
+
+        if "video" in request.files:
+            vid = request.files["video"]
+            if vid and vid.filename:
+                try:
+                    video_url = _cloudinary_upload(vid, "octanova-roles", "video")
+                except Exception as e:
+                    print(f"[cloudinary] video upload error: {e}")
+
+        conn.execute("""
+            INSERT INTO roles (startup_id, title, role_type, duration, description,
+                skills_required, experience_level, location_type, is_paid, deadline,
+                image_url, video_url, status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active')
+        """, (startup["id"], title, role_type, duration, description,
+              skills_req, exp_level, loc_type, is_paid, deadline, image_url, video_url))
+
+        role_id = conn._cur.lastrowid
+
+        # Match students to this role and notify them
+        _match_role_to_students(conn, startup, role_id, title, skills_req)
+
+        conn.close()
+        flash("Role posted successfully!", "success")
+        return redirect(url_for("my_roles"))
+
+    conn.close()
+    return render_template("post_role.html", startup=startup)
+
+
+def _match_role_to_students(conn, startup, role_id, role_title, skills_req):
+    """Find students whose skills overlap with role skills and notify them."""
+    from mailer import _send_via_resend
+    role_skills = set(x.strip().lower() for x in (skills_req or "").split(",") if x.strip())
+    if not role_skills:
+        return
+    students = conn.execute("SELECT * FROM students").fetchall()
+    for student in students:
+        st_skills = set(x.strip().lower() for x in (student["skills"] or "").split(","))
+        if role_skills & st_skills:
+            # Check not already interested
+            existing = conn.execute(
+                "SELECT id FROM role_interests WHERE role_id=%s AND student_id=%s",
+                (role_id, student["id"])
+            ).fetchone()
+            if not existing:
+                conn.execute(
+                    "INSERT INTO role_interests (role_id, student_id) VALUES (%s,%s)",
+                    (role_id, student["id"])
+                )
+            # Email notification
+            html = f"""
+            <div style="font-family:sans-serif;background:#0a0a0a;color:#f1f5f9;padding:32px 0">
+              <div style="max-width:520px;margin:0 auto;background:#111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
+                <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:24px;text-align:center">
+                  <h1 style="margin:0;color:#fff;font-size:1.1rem">OctaNova</h1>
+                </div>
+                <div style="padding:28px">
+                  <h2 style="margin:0 0 10px;font-size:1rem;color:#f1f5f9">A new role matches your profile!</h2>
+                  <p style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin:0 0 16px">
+                    Hi {student["name"]}, <strong style="color:#f1f5f9">{startup["startup_name"]}</strong>
+                    just posted a role that matches your skills:
+                  </p>
+                  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:16px;margin-bottom:16px">
+                    <p style="margin:0 0 6px;font-size:1rem;font-weight:700;color:#f1f5f9">{role_title}</p>
+                    <p style="margin:0;font-size:.85rem;color:#94a3b8">{startup["startup_name"]} &middot; {startup["industry"]}</p>
+                  </div>
+                  <p style="color:#94a3b8;font-size:.85rem">Log in to OctaNova to view and accept this role.</p>
+                </div>
+              </div>
+            </div>"""
+            try:
+                _send_via_resend(student["email"], f"A new role matches your profile on Octanova!", html)
+            except Exception as e:
+                print(f"[mailer] role notification error: {e}")
+
+
+@app.route("/roles")
+@login_required
+def browse_roles():
+    uid   = session["user_id"]
+    ptype = session.get("profile_type")
+    conn  = get_db()
+
+    if ptype != "student":
+        conn.close()
+        return redirect(url_for("dashboard"))
+
+    student = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
+    if not student:
+        conn.close()
+        flash("Complete your profile first.", "error")
+        return redirect(url_for("student_profile"))
+
+    # All active roles with startup info
+    all_roles = conn.execute("""
+        SELECT r.*, s.startup_name, s.industry, s.logo_url, s.avatar_url
+        FROM roles r JOIN startups s ON r.startup_id = s.id
+        WHERE r.status = 'active'
+        ORDER BY r.created_at DESC
+    """).fetchall()
+
+    # Student's interests/matches
+    my_interest_ids = set(
+        row["role_id"] for row in conn.execute(
+            "SELECT role_id FROM role_interests WHERE student_id=%s", (student["id"],)
+        ).fetchall()
+    )
+
+    st_skills = set(x.strip().lower() for x in (student["skills"] or "").split(","))
+    st_interests = set(x.strip().lower() for x in (student["interests"] or "").split(","))
+
+    matched_roles = []
+    browse_roles_list = []
+
+    for r in all_roles:
+        r = dict(r)
+        role_skills = set(x.strip().lower() for x in (r["skills_required"] or "").split(","))
+        overlap = st_skills & role_skills
+        r["match_pct"] = min(100, int(len(overlap) / max(len(role_skills), 1) * 100)) if role_skills else 0
+        r["interested"] = r["id"] in my_interest_ids
+        if overlap:
+            matched_roles.append(r)
+        else:
+            browse_roles_list.append(r)
+
+    conn.close()
+    return render_template("roles.html", matched_roles=matched_roles,
+                           browse_roles=browse_roles_list, student=student)
+
+
+@app.route("/roles/interest/<int:role_id>", methods=["POST"])
+@login_required
+def express_interest(role_id):
+    uid  = session["user_id"]
+    conn = get_db()
+    student = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
+    if not student:
+        conn.close()
+        return redirect(url_for("student_profile"))
+
+    existing = conn.execute(
+        "SELECT id FROM role_interests WHERE role_id=%s AND student_id=%s",
+        (role_id, student["id"])
+    ).fetchone()
+
+    if not existing:
+        conn.execute(
+            "INSERT INTO role_interests (role_id, student_id) VALUES (%s,%s)",
+            (role_id, student["id"])
+        )
+        # Notify startup
+        role = conn.execute(
+            "SELECT r.*, s.startup_name, s.email AS startup_email FROM roles r JOIN startups s ON r.startup_id=s.id WHERE r.id=%s",
+            (role_id,)
+        ).fetchone()
+        if role:
+            from mailer import _send_via_resend
+            html = f"""
+            <div style="font-family:sans-serif;background:#0a0a0a;color:#f1f5f9;padding:32px 0">
+              <div style="max-width:520px;margin:0 auto;background:#111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
+                <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:24px;text-align:center">
+                  <h1 style="margin:0;color:#fff;font-size:1.1rem">OctaNova</h1>
+                </div>
+                <div style="padding:28px">
+                  <h2 style="margin:0 0 10px;font-size:1rem;color:#f1f5f9">A student is interested in your role!</h2>
+                  <p style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin:0 0 16px">
+                    <strong style="color:#f1f5f9">{student["name"]}</strong> is interested in your
+                    <strong style="color:#f1f5f9">{role["title"]}</strong> role on OctaNova.
+                  </p>
+                  <p style="color:#94a3b8;font-size:.85rem">Log in to OctaNova to view and respond.</p>
+                </div>
+              </div>
+            </div>"""
+            try:
+                _send_via_resend(role["startup_email"], f"A student is interested in your {role['title']} role on Octanova!", html)
+            except Exception as e:
+                print(f"[mailer] interest notification error: {e}")
+        flash("Interest expressed! The startup will be notified.", "success")
+    else:
+        flash("You already expressed interest in this role.", "error")
+
+    conn.close()
+    return redirect(url_for("browse_roles"))
+
+
+@app.route("/roles/accept-interest/<int:interest_id>", methods=["POST"])
+@login_required
+def accept_interest(interest_id):
+    """Startup accepts a student's interest — reveals contact details."""
+    uid  = session["user_id"]
+    conn = get_db()
+    startup = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
+    if not startup:
+        conn.close()
+        return redirect(url_for("dashboard"))
+
+    conn.execute(
+        "UPDATE role_interests SET startup_accepted=1 WHERE id=%s", (interest_id,)
+    )
+    flash("Interest accepted! Contact details will be revealed to the student.", "success")
+    conn.close()
+    return redirect(url_for("my_roles"))
+
+
+@app.route("/roles/my-roles")
+@login_required
+def my_roles():
+    uid  = session["user_id"]
+    ptype = session.get("profile_type")
+    conn = get_db()
+
+    if ptype != "startup":
+        conn.close()
+        return redirect(url_for("dashboard"))
+
+    startup = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
+    if not startup:
+        conn.close()
+        return redirect(url_for("startup_profile"))
+
+    roles = conn.execute("""
+        SELECT r.*,
+            (SELECT COUNT(*) FROM role_interests ri WHERE ri.role_id=r.id) AS interest_count
+        FROM roles r WHERE r.startup_id=%s ORDER BY r.created_at DESC
+    """, (startup["id"],)).fetchall()
+
+    # For each role, get interested students
+    roles_with_interests = []
+    for r in roles:
+        r = dict(r)
+        interests = conn.execute("""
+            SELECT ri.*, st.name, st.skills, st.email AS student_email, st.whatsapp, st.avatar_url
+            FROM role_interests ri JOIN students st ON ri.student_id=st.id
+            WHERE ri.role_id=%s
+        """, (r["id"],)).fetchall()
+        r["interests"] = interests
+        roles_with_interests.append(r)
+
+    conn.close()
+    return render_template("my_roles.html", roles=roles_with_interests, startup=startup)
+
+
+@app.route("/roles/close/<int:role_id>", methods=["POST"])
+@login_required
+def close_role(role_id):
+    uid  = session["user_id"]
+    conn = get_db()
+    startup = conn.execute("SELECT * FROM startups WHERE user_id=%s", (uid,)).fetchone()
+    if startup:
+        conn.execute(
+            "UPDATE roles SET status='closed' WHERE id=%s AND startup_id=%s",
+            (role_id, startup["id"])
+        )
+    conn.close()
+    flash("Role closed.", "success")
+    return redirect(url_for("my_roles"))
+
+
+
     conn = get_db()
     conn.execute("DELETE FROM matches WHERE score < 60")
     conn.close()

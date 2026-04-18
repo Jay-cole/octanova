@@ -1,0 +1,98 @@
+<div class="card" style="flex-direction: column; align-items: stretch">
+  {% if r.get("image_url") %}
+  <img
+    src="{{ r['image_url'] }}"
+    alt=""
+    style="
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    "
+  />
+  {% endif %}
+
+  <div
+    style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px"
+  >
+    {% if r.get("logo_url") %}
+    <div
+      class="logo-square"
+      style="width: 36px; height: 36px; border-radius: 5px"
+    >
+      <img src="{{ r['logo_url'] }}" alt="" />
+    </div>
+    {% elif r.get("avatar_url") %}
+    <div class="avatar-circle-sm">
+      <img src="{{ r['avatar_url'] }}" alt="" />
+    </div>
+    {% else %}
+    <div class="avatar-circle-sm">{{ r["startup_name"][0].upper() }}</div>
+    {% endif %}
+    <div>
+      <div style="font-size: 0.78rem; color: var(--text-dim)">
+        {{ r["startup_name"] }}
+      </div>
+      <div style="font-size: 1rem; font-weight: 700; color: var(--text)">
+        {{ r["title"] }}
+      </div>
+    </div>
+    {% if r.get("match_pct") and r["match_pct"] > 0 %}
+    <div class="score-ring" style="margin-left: auto">
+      {{ r["match_pct"] }}%
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px">
+    <span class="badge badge-gray">{{ r["role_type"] | capitalize }}</span>
+    <span class="badge badge-gray">{{ r["location_type"] | capitalize }}</span>
+    {% if r["is_paid"] %}<span class="badge badge-green">Paid</span> {% else
+    %}<span class="badge badge-gray">Unpaid</span>{% endif %} {% if
+    r.get("duration") %}<span class="badge badge-gray">{{ r["duration"] }}</span
+    >{% endif %}
+  </div>
+
+  {% if r.get("description") %}
+  <p
+    style="
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      line-height: 1.6;
+    "
+  >
+    {{ r["description"] }}
+  </p>
+  {% endif %} {% if r.get("skills_required") %}
+  <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px">
+    {% for skill in r["skills_required"].split(",") %}
+    <span class="badge badge-purple">{{ skill.strip() }}</span>
+    {% endfor %}
+  </div>
+  {% endif %} {% if r.get("deadline") %}
+  <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px">
+    Deadline: {{ r["deadline"] }}
+  </p>
+  {% endif %} {% if r.get("video_url") %}
+  <video
+    src="{{ r['video_url'] }}"
+    controls
+    style="
+      width: 100%;
+      border-radius: 8px;
+      max-height: 180px;
+      margin-bottom: 12px;
+    "
+  ></video>
+  {% endif %} {% if not r.get("interested") %}
+  <form method="POST" action="/roles/interest/{{ r['id'] }}">
+    <button class="btn btn-primary btn-sm">I'm Interested</button>
+  </form>
+  {% else %}
+  <span class="badge badge-green" style="align-self: flex-start"
+    >Interest Sent</span
+  >
+  {% endif %}
+</div>

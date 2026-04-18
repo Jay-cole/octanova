@@ -179,10 +179,17 @@
             >{% endif %}
           </a>
           {% if ptype == "student" %}
+          <a href="/roles" class="btn btn-secondary btn-sm">Browse Roles</a>
           <a href="/profile/student" class="btn btn-ghost btn-sm"
             >Edit Profile</a
           >
           {% else %}
+          <a href="/roles/my-roles" class="btn btn-secondary btn-sm"
+            >My Roles</a
+          >
+          <a href="/roles/post" class="btn btn-secondary btn-sm"
+            >+ Post a Role</a
+          >
           <a href="/profile/startup" class="btn btn-ghost btn-sm"
             >Edit Profile</a
           >

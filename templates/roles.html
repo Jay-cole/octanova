@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Roles - OctaNova</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    {% include "nav.html" %} {% with messages =
+    get_flashed_messages(with_categories=true) %}
+    <div class="flash-wrap">
+      {% for c,m in messages %}
+      <div class="flash {{ c }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+    {% endwith %}
+
+    <div class="page">
+      <div class="page-header">
+        <h2>Roles</h2>
+        <a href="/dashboard" class="btn btn-ghost btn-sm">Back to Dashboard</a>
+      </div>
+
+      {% if matched_roles %}
+      <p
+        style="
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: var(--text-dim);
+          margin-bottom: 14px;
+        "
+      >
+        Matched Roles
+      </p>
+      {% for r in matched_roles %} {% include "role_card.html" %} {% endfor %}
+      {% endif %} {% if browse_roles %}
+      <p
+        style="
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: var(--text-dim);
+          margin: 24px 0 14px;
+        "
+      >
+        Browse All Roles
+      </p>
+      {% for r in browse_roles %} {% include "role_card.html" %} {% endfor %} {%
+      endif %} {% if not matched_roles and not browse_roles %}
+      <div class="empty-state">
+        <div class="empty-icon">&#128196;</div>
+        <p>No roles posted yet. Check back soon.</p>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>

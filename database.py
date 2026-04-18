@@ -138,6 +138,39 @@ def init_db():
         except Exception:
             pass
 
+    # Roles table
+    conn.execute("""CREATE TABLE IF NOT EXISTS roles (
+        id INTEGER PRIMARY KEY AUTO_INCREMENT,
+        startup_id INTEGER NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        role_type VARCHAR(30) NOT NULL,
+        duration VARCHAR(100),
+        description TEXT,
+        skills_required VARCHAR(500),
+        experience_level VARCHAR(20) DEFAULT 'any',
+        location_type VARCHAR(20) DEFAULT 'remote',
+        is_paid TINYINT(1) DEFAULT 0,
+        deadline DATE,
+        image_url VARCHAR(500),
+        video_url VARCHAR(500),
+        status VARCHAR(10) DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (startup_id) REFERENCES startups(id)
+    )""")
+
+    # Role interests table
+    conn.execute("""CREATE TABLE IF NOT EXISTS role_interests (
+        id INTEGER PRIMARY KEY AUTO_INCREMENT,
+        role_id INTEGER NOT NULL,
+        student_id INTEGER NOT NULL,
+        startup_accepted TINYINT(1) DEFAULT 0,
+        student_accepted TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (role_id) REFERENCES roles(id),
+        FOREIGN KEY (student_id) REFERENCES students(id),
+        UNIQUE KEY unique_interest (role_id, student_id)
+    )""")
+
     existing = conn.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     if not existing:
         pw = hash_password("admin123")
