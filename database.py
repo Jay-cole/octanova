@@ -171,6 +171,15 @@ def init_db():
         UNIQUE KEY unique_interest (role_id, student_id)
     )""")
 
+    # Dismissed role matches table
+    conn.execute("""CREATE TABLE IF NOT EXISTS dismissed_role_matches (
+        id INTEGER PRIMARY KEY AUTO_INCREMENT,
+        student_id INTEGER NOT NULL,
+        role_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_dismiss (student_id, role_id)
+    )""")
+
     existing = conn.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     if not existing:
         pw = hash_password("admin123")

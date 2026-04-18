@@ -1,98 +1,197 @@
-<div class="card" style="flex-direction: column; align-items: stretch">
+<div
+  class="card"
+  style="
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+  "
+>
   {% if r.get("image_url") %}
-  <img
-    src="{{ r['image_url'] }}"
-    alt=""
-    style="
-      width: 100%;
-      height: 160px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 12px;
-    "
-  />
+  <div class="role-media" onclick="openLightbox('{{ r['image_url'] }}')">
+    <img src="{{ r['image_url'] }}" alt="Role flier" class="role-img" />
+  </div>
+  {% elif r.get("video_url") %}
+  <div
+    class="role-media role-video-wrap"
+    onclick="playVideo(this, '{{ r['video_url'] }}')"
+  >
+    <video
+      class="role-img"
+      preload="metadata"
+      src="{{ r['video_url'] }}#t=0.5"
+    ></video>
+    <div class="video-play-btn">&#9654;</div>
+  </div>
   {% endif %}
 
-  <div
-    style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px"
-  >
-    {% if r.get("logo_url") %}
+  <div style="padding: 16px 18px">
     <div
-      class="logo-square"
-      style="width: 36px; height: 36px; border-radius: 5px"
+      style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px"
     >
-      <img src="{{ r['logo_url'] }}" alt="" />
+      {% if r.get("logo_url") %}
+      <div
+        class="logo-square"
+        style="width: 36px; height: 36px; border-radius: 5px"
+      >
+        <img src="{{ r['logo_url'] }}" alt="" />
+      </div>
+      {% elif r.get("avatar_url") %}
+      <div class="avatar-circle-sm">
+        <img src="{{ r['avatar_url'] }}" alt="" />
+      </div>
+      {% else %}
+      <div class="avatar-circle-sm">{{ r["startup_name"][0].upper() }}</div>
+      {% endif %}
+      <div>
+        <div style="font-size: 0.78rem; color: var(--text-dim)">
+          {{ r["startup_name"] }}
+        </div>
+        <div style="font-size: 1rem; font-weight: 700; color: var(--text)">
+          {{ r["title"] }}
+        </div>
+      </div>
+      {% if r.get("match_pct") and r["match_pct"] > 0 %}
+      <div class="score-ring" style="margin-left: auto">
+        {{ r["match_pct"] }}%
+      </div>
+      {% endif %}
     </div>
-    {% elif r.get("avatar_url") %}
-    <div class="avatar-circle-sm">
-      <img src="{{ r['avatar_url'] }}" alt="" />
+
+    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px">
+      <span class="badge badge-gray">{{ r["role_type"] | capitalize }}</span>
+      <span class="badge badge-gray"
+        >{{ r["location_type"] | capitalize }}</span
+      >
+      {% if r["is_paid"] %}<span class="badge badge-green">Paid</span> {% else
+      %}<span class="badge badge-gray">Unpaid</span>{% endif %} {% if
+      r.get("duration") %}<span class="badge badge-gray"
+        >{{ r["duration"] }}</span
+      >{% endif %}
+    </div>
+
+    {% if r.get("description") %}
+    <p
+      style="
+        font-size: 0.84rem;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+        line-height: 1.6;
+      "
+    >
+      {{ r["description"] }}
+    </p>
+    {% endif %} {% if r.get("skills_required") %}
+    <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px">
+      {% for skill in r["skills_required"].split(",") %}
+      <span class="badge badge-purple">{{ skill.strip() }}</span>
+      {% endfor %}
+    </div>
+    {% endif %} {% if r.get("deadline") %}
+    <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 12px">
+      Deadline: {{ r["deadline"] }}
+    </p>
+    {% endif %}
+
+    <!-- Action buttons -->
+    {% if r.get("interested") %}
+    <span class="badge badge-green">Accepted</span>
+    {% elif r.get("is_matched") %}
+    <!-- Matched role — student must actively choose -->
+    <div style="display: flex; gap: 8px; flex-wrap: wrap">
+      <form method="POST" action="/roles/interest/{{ r['id'] }}">
+        <button class="btn btn-success btn-sm">Accept Match</button>
+      </form>
+      <form method="POST" action="/roles/dismiss/{{ r['id'] }}">
+        <button class="btn btn-ghost btn-sm">Not Interested</button>
+      </form>
     </div>
     {% else %}
-    <div class="avatar-circle-sm">{{ r["startup_name"][0].upper() }}</div>
-    {% endif %}
-    <div>
-      <div style="font-size: 0.78rem; color: var(--text-dim)">
-        {{ r["startup_name"] }}
-      </div>
-      <div style="font-size: 1rem; font-weight: 700; color: var(--text)">
-        {{ r["title"] }}
-      </div>
-    </div>
-    {% if r.get("match_pct") and r["match_pct"] > 0 %}
-    <div class="score-ring" style="margin-left: auto">
-      {{ r["match_pct"] }}%
-    </div>
+    <!-- Browse role — I'm Interested -->
+    <form method="POST" action="/roles/interest/{{ r['id'] }}">
+      <button class="btn btn-primary btn-sm">I'm Interested</button>
+    </form>
     {% endif %}
   </div>
-
-  <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px">
-    <span class="badge badge-gray">{{ r["role_type"] | capitalize }}</span>
-    <span class="badge badge-gray">{{ r["location_type"] | capitalize }}</span>
-    {% if r["is_paid"] %}<span class="badge badge-green">Paid</span> {% else
-    %}<span class="badge badge-gray">Unpaid</span>{% endif %} {% if
-    r.get("duration") %}<span class="badge badge-gray">{{ r["duration"] }}</span
-    >{% endif %}
-  </div>
-
-  {% if r.get("description") %}
-  <p
-    style="
-      font-size: 0.84rem;
-      color: var(--text-muted);
-      margin-bottom: 10px;
-      line-height: 1.6;
-    "
-  >
-    {{ r["description"] }}
-  </p>
-  {% endif %} {% if r.get("skills_required") %}
-  <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px">
-    {% for skill in r["skills_required"].split(",") %}
-    <span class="badge badge-purple">{{ skill.strip() }}</span>
-    {% endfor %}
-  </div>
-  {% endif %} {% if r.get("deadline") %}
-  <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px">
-    Deadline: {{ r["deadline"] }}
-  </p>
-  {% endif %} {% if r.get("video_url") %}
-  <video
-    src="{{ r['video_url'] }}"
-    controls
-    style="
-      width: 100%;
-      border-radius: 8px;
-      max-height: 180px;
-      margin-bottom: 12px;
-    "
-  ></video>
-  {% endif %} {% if not r.get("interested") %}
-  <form method="POST" action="/roles/interest/{{ r['id'] }}">
-    <button class="btn btn-primary btn-sm">I'm Interested</button>
-  </form>
-  {% else %}
-  <span class="badge badge-green" style="align-self: flex-start"
-    >Interest Sent</span
-  >
-  {% endif %}
 </div>
+
+<!-- Lightbox (shared, only rendered once but reused) -->
+<div
+  id="lightbox"
+  onclick="closeLightbox()"
+  style="
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  "
+>
+  <img
+    id="lightbox-img"
+    src=""
+    alt=""
+    style="
+      max-width: 92vw;
+      max-height: 92vh;
+      border-radius: 8px;
+      object-fit: contain;
+    "
+  />
+</div>
+
+<style>
+  .role-media {
+    width: 100%;
+    height: 280px;
+    overflow: hidden;
+    cursor: zoom-in;
+    position: relative;
+    background: #111;
+  }
+  .role-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .role-video-wrap {
+    cursor: pointer;
+  }
+  .video-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px;
+    height: 56px;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: #fff;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  function openLightbox(url) {
+    const lb = document.getElementById("lightbox");
+    document.getElementById("lightbox-img").src = url;
+    lb.style.display = "flex";
+  }
+  function closeLightbox() {
+    document.getElementById("lightbox").style.display = "none";
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLightbox();
+  });
+  function playVideo(wrap, url) {
+    wrap.innerHTML = `<video src="${url}" controls autoplay style="width:100%;height:280px;object-fit:cover;display:block"></video>`;
+  }
+</script>

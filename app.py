@@ -746,50 +746,12 @@ def post_role():
 
 
 def _match_role_to_students(conn, startup, role_id, role_title, skills_req):
-    """Find students whose skills overlap with role skills and notify them."""
-    from mailer import _send_via_resend
+    """Find students whose skills overlap with role skills — suggestion only, no auto-interest."""
     role_skills = set(x.strip().lower() for x in (skills_req or "").split(",") if x.strip())
     if not role_skills:
         return
-    students = conn.execute("SELECT * FROM students").fetchall()
-    for student in students:
-        st_skills = set(x.strip().lower() for x in (student["skills"] or "").split(","))
-        if role_skills & st_skills:
-            # Check not already interested
-            existing = conn.execute(
-                "SELECT id FROM role_interests WHERE role_id=%s AND student_id=%s",
-                (role_id, student["id"])
-            ).fetchone()
-            if not existing:
-                conn.execute(
-                    "INSERT INTO role_interests (role_id, student_id) VALUES (%s,%s)",
-                    (role_id, student["id"])
-                )
-            # Email notification
-            html = f"""
-            <div style="font-family:sans-serif;background:#0a0a0a;color:#f1f5f9;padding:32px 0">
-              <div style="max-width:520px;margin:0 auto;background:#111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
-                <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:24px;text-align:center">
-                  <h1 style="margin:0;color:#fff;font-size:1.1rem">OctaNova</h1>
-                </div>
-                <div style="padding:28px">
-                  <h2 style="margin:0 0 10px;font-size:1rem;color:#f1f5f9">A new role matches your profile!</h2>
-                  <p style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin:0 0 16px">
-                    Hi {student["name"]}, <strong style="color:#f1f5f9">{startup["startup_name"]}</strong>
-                    just posted a role that matches your skills:
-                  </p>
-                  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:16px;margin-bottom:16px">
-                    <p style="margin:0 0 6px;font-size:1rem;font-weight:700;color:#f1f5f9">{role_title}</p>
-                    <p style="margin:0;font-size:.85rem;color:#94a3b8">{startup["startup_name"]} &middot; {startup["industry"]}</p>
-                  </div>
-                  <p style="color:#94a3b8;font-size:.85rem">Log in to OctaNova to view and accept this role.</p>
-                </div>
-              </div>
-            </div>"""
-            try:
-                _send_via_resend(student["email"], f"A new role matches your profile on Octanova!", html)
-            except Exception as e:
-                print(f"[mailer] role notification error: {e}")
+    # No auto-insert, no email — students will see this as a suggested match
+    # and must actively accept or dismiss it themselves.
 
 
 @app.route("/roles")
@@ -817,25 +779,32 @@ def browse_roles():
         ORDER BY r.created_at DESC
     """).fetchall()
 
-    # Student's interests/matches
+    # Student's interests and dismissed roles
     my_interest_ids = set(
         row["role_id"] for row in conn.execute(
-            "SELECT role_id FROM role_interests WHERE student_id=%s", (student["id"],)
+            "SELECT role_id FROM role_interests WHERE student_id=%s AND student_accepted=1", (student["id"],)
+        ).fetchall()
+    )
+    dismissed_ids = set(
+        row["role_id"] for row in conn.execute(
+            "SELECT role_id FROM dismissed_role_matches WHERE student_id=%s", (student["id"],)
         ).fetchall()
     )
 
     st_skills = set(x.strip().lower() for x in (student["skills"] or "").split(","))
-    st_interests = set(x.strip().lower() for x in (student["interests"] or "").split(","))
 
     matched_roles = []
     browse_roles_list = []
 
     for r in all_roles:
         r = dict(r)
+        if r["id"] in dismissed_ids:
+            continue
         role_skills = set(x.strip().lower() for x in (r["skills_required"] or "").split(","))
         overlap = st_skills & role_skills
         r["match_pct"] = min(100, int(len(overlap) / max(len(role_skills), 1) * 100)) if role_skills else 0
         r["interested"] = r["id"] in my_interest_ids
+        r["is_matched"] = bool(overlap)
         if overlap:
             matched_roles.append(r)
         else:
@@ -849,6 +818,7 @@ def browse_roles():
 @app.route("/roles/interest/<int:role_id>", methods=["POST"])
 @login_required
 def express_interest(role_id):
+    """Student actively accepts a match or expresses interest — notifies startup."""
     uid  = session["user_id"]
     conn = get_db()
     student = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
@@ -863,40 +833,63 @@ def express_interest(role_id):
 
     if not existing:
         conn.execute(
-            "INSERT INTO role_interests (role_id, student_id) VALUES (%s,%s)",
+            "INSERT INTO role_interests (role_id, student_id, student_accepted) VALUES (%s,%s,1)",
             (role_id, student["id"])
         )
-        # Notify startup
-        role = conn.execute(
-            "SELECT r.*, s.startup_name, s.email AS startup_email FROM roles r JOIN startups s ON r.startup_id=s.id WHERE r.id=%s",
-            (role_id,)
-        ).fetchone()
-        if role:
-            from mailer import _send_via_resend
-            html = f"""
-            <div style="font-family:sans-serif;background:#0a0a0a;color:#f1f5f9;padding:32px 0">
-              <div style="max-width:520px;margin:0 auto;background:#111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
-                <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:24px;text-align:center">
-                  <h1 style="margin:0;color:#fff;font-size:1.1rem">OctaNova</h1>
-                </div>
-                <div style="padding:28px">
-                  <h2 style="margin:0 0 10px;font-size:1rem;color:#f1f5f9">A student is interested in your role!</h2>
-                  <p style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin:0 0 16px">
-                    <strong style="color:#f1f5f9">{student["name"]}</strong> is interested in your
-                    <strong style="color:#f1f5f9">{role["title"]}</strong> role on OctaNova.
-                  </p>
-                  <p style="color:#94a3b8;font-size:.85rem">Log in to OctaNova to view and respond.</p>
-                </div>
-              </div>
-            </div>"""
-            try:
-                _send_via_resend(role["startup_email"], f"A student is interested in your {role['title']} role on Octanova!", html)
-            except Exception as e:
-                print(f"[mailer] interest notification error: {e}")
-        flash("Interest expressed! The startup will be notified.", "success")
     else:
-        flash("You already expressed interest in this role.", "error")
+        conn.execute(
+            "UPDATE role_interests SET student_accepted=1 WHERE role_id=%s AND student_id=%s",
+            (role_id, student["id"])
+        )
 
+    # Notify startup — only fires when student actively accepts
+    role = conn.execute(
+        "SELECT r.*, s.startup_name, s.email AS startup_email FROM roles r JOIN startups s ON r.startup_id=s.id WHERE r.id=%s",
+        (role_id,)
+    ).fetchone()
+    if role:
+        from mailer import _send_via_resend
+        html = f"""
+        <div style="font-family:sans-serif;background:#0a0a0a;color:#f1f5f9;padding:32px 0">
+          <div style="max-width:520px;margin:0 auto;background:#111;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a">
+            <div style="background:linear-gradient(135deg,#3B82F6,#8B5CF6);padding:24px;text-align:center">
+              <h1 style="margin:0;color:#fff;font-size:1.1rem">OctaNova</h1>
+            </div>
+            <div style="padding:28px">
+              <h2 style="margin:0 0 10px;font-size:1rem;color:#f1f5f9">A student accepted your match!</h2>
+              <p style="color:#94a3b8;font-size:.9rem;line-height:1.6;margin:0 0 16px">
+                <strong style="color:#f1f5f9">{student["name"]}</strong> accepted the match for your
+                <strong style="color:#f1f5f9">{role["title"]}</strong> role on OctaNova.
+              </p>
+              <p style="color:#94a3b8;font-size:.85rem">Log in to OctaNova to view and respond.</p>
+            </div>
+          </div>
+        </div>"""
+        try:
+            _send_via_resend(role["startup_email"], f"A student accepted your match on Octanova!", html)
+        except Exception as e:
+            print(f"[mailer] interest notification error: {e}")
+
+    flash("Match accepted! The startup has been notified.", "success")
+    conn.close()
+    return redirect(url_for("browse_roles"))
+
+
+@app.route("/roles/dismiss/<int:role_id>", methods=["POST"])
+@login_required
+def dismiss_role(role_id):
+    """Student dismisses a suggested match — never shows again."""
+    uid  = session["user_id"]
+    conn = get_db()
+    student = conn.execute("SELECT * FROM students WHERE user_id=%s", (uid,)).fetchone()
+    if student:
+        try:
+            conn.execute(
+                "INSERT INTO dismissed_role_matches (student_id, role_id) VALUES (%s,%s)",
+                (student["id"], role_id)
+            )
+        except Exception:
+            pass
     conn.close()
     return redirect(url_for("browse_roles"))
 
