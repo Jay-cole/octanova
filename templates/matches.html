@@ -42,16 +42,16 @@
         border-color: transparent;
       }
       .match-tab .tab-count {
-        background: rgba(255, 255, 255, 0.2);
-        color: inherit;
+        background: var(--surface3);
+        color: var(--text-dim);
         font-size: 0.68rem;
         font-weight: 700;
         border-radius: 999px;
         padding: 1px 7px;
       }
-      .match-tab:not(.active) .tab-count {
-        background: var(--surface3);
-        color: var(--text-dim);
+      .match-tab.active .tab-count {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
       }
       .tab-pane {
         display: none;
@@ -89,11 +89,6 @@
         font-size: 0.78rem;
         color: var(--text-dim);
         margin-top: 2px;
-      }
-      .match-card-body p {
-        font-size: 0.84rem;
-        color: var(--text-muted);
-        margin-bottom: 4px;
       }
       .match-card-actions {
         display: flex;
@@ -161,7 +156,6 @@
         <a href="/dashboard" class="btn btn-ghost btn-sm">Back to Dashboard</a>
       </div>
 
-      <!-- Tabs -->
       <div class="match-tabs">
         <button class="match-tab active" onclick="switchTab('pending', this)">
           Pending <span class="tab-count">{{ pending|length }}</span>
@@ -169,18 +163,20 @@
         <button class="match-tab" onclick="switchTab('matched', this)">
           Matched <span class="tab-count">{{ matched|length }}</span>
         </button>
+        {% if user_type == "student" %}
         <button class="match-tab" onclick="switchTab('interested', this)">
           Interested <span class="tab-count">{{ role_interests|length }}</span>
         </button>
+        {% endif %}
       </div>
 
-      <!-- PENDING TAB -->
+      <!-- ── PENDING ── -->
       <div id="tab-pending" class="tab-pane active">
         {% if not pending %}
         <div class="empty-tab">
           No pending matches right now — check back soon.
         </div>
-        {% endif %} {% for m in pending %}
+        {% else %} {% for m in pending %}
         <div class="match-card">
           <div class="match-card-header">
             {% if user_type == "student" %} {% if m.get("match_logo") %}
@@ -205,56 +201,66 @@
                 {{ m["industry"] }} &middot; {{ m["offers"] }}
               </div>
             </div>
-            {% else %} {% if m.get("match_avatar") %}
+            <div class="score-ring">{{ m["score"] }}%</div>
+            {% else %} {% if m.get("avatar_url") %}
             <div class="avatar-circle-sm">
-              <img src="{{ m['match_avatar'] }}" alt="" />
+              <img src="{{ m['avatar_url'] }}" alt="" />
             </div>
             {% else %}
             <div class="avatar-circle-sm">{{ m["name"][0].upper() }}</div>
             {% endif %}
             <div class="match-card-meta">
               <div class="name">{{ m["name"] }}</div>
-              <div class="sub">{{ m["skills"] }}</div>
+              <div class="sub">
+                {{ m["skills"] }}{% if m.get("title") %} &middot; {{ m["title"]
+                }}{% endif %}
+              </div>
             </div>
             {% endif %}
-            <div class="score-ring">{{ m["score"] }}%</div>
           </div>
 
-          {% if m["matched_skills"] or m["matched_interests"] or
-          m["matched_wants"] %}
+          {% if user_type == "student" %}
           <div class="reason-box">
-            {% if m["matched_skills"] %}Skills in
+            {% if m.get("matched_skills") %}Skills in
             <strong>{{ m["matched_skills"] }}</strong>. {% endif %} {% if
-            m["matched_interests"] %}Interest in
+            m.get("matched_interests") %}Interest in
             <strong>{{ m["matched_interests"] }}</strong>. {% endif %} {% if
-            m["matched_wants"] %}Aligned on
-            <strong>{{ m["matched_wants"] }}</strong>.{% endif %}
-          </div>
-          {% else %}
-          <div class="reason-box">
-            Selected based on overall profile compatibility.
+            m.get("matched_wants") %}Aligned on
+            <strong>{{ m["matched_wants"] }}</strong>.{% endif %} {% if not
+            m.get("matched_skills") and not m.get("matched_interests") and not
+            m.get("matched_wants") %}Selected based on overall profile
+            compatibility.{% endif %}
           </div>
           {% endif %}
 
           <div class="match-card-actions">
+            {% if user_type == "student" %}
             <form method="POST" action="/accept/{{ m['id'] }}">
               <button class="btn btn-success btn-sm">Accept Match</button>
             </form>
             <form method="POST" action="/decline/{{ m['id'] }}">
               <button class="btn btn-ghost btn-sm">Not Interested</button>
             </form>
+            {% else %}
+            <form method="POST" action="/accept-interest/{{ m['id'] }}">
+              <button class="btn btn-success btn-sm">Accept</button>
+            </form>
+            <form method="POST" action="/decline-interest/{{ m['id'] }}">
+              <button class="btn btn-ghost btn-sm">Decline</button>
+            </form>
+            {% endif %}
           </div>
         </div>
-        {% endfor %}
+        {% endfor %} {% endif %}
       </div>
 
-      <!-- MATCHED TAB -->
+      <!-- ── MATCHED ── -->
       <div id="tab-matched" class="tab-pane">
         {% if not matched %}
         <div class="empty-tab">
           No confirmed matches yet — accept a pending match to get started.
         </div>
-        {% endif %} {% for m in matched %}
+        {% else %} {% for m in matched %}
         <div class="match-card">
           <div class="match-card-header">
             {% if user_type == "student" %} {% if m.get("match_logo") %}
@@ -276,46 +282,50 @@
             <div class="match-card-meta">
               <div class="name">{{ m["startup_name"] }}</div>
               <div class="sub">
-                {{ m["industry"] }} &middot; {{ m["remote_physical"] |
+                {{ m["industry"] }} &middot; {{ m.get("remote_physical","") |
                 capitalize }}
               </div>
             </div>
-            {% else %} {% if m.get("match_avatar") %}
+            <div class="score-ring">{{ m["score"] }}%</div>
+            {% else %} {% if m.get("avatar_url") or m.get("match_avatar") %}
             <div class="avatar-circle-sm">
-              <img src="{{ m['match_avatar'] }}" alt="" />
+              <img
+                src="{{ m.get('avatar_url') or m.get('match_avatar') }}"
+                alt=""
+              />
             </div>
             {% else %}
             <div class="avatar-circle-sm">{{ m["name"][0].upper() }}</div>
             {% endif %}
             <div class="match-card-meta">
               <div class="name">{{ m["name"] }}</div>
-              <div class="sub">{{ m["skills"] }}</div>
+              <div class="sub">
+                {{ m["skills"] }}{% if m.get("title") %} &middot; {{ m["title"]
+                }}{% endif %}
+              </div>
             </div>
             {% endif %}
-            <div class="score-ring">{{ m["score"] }}%</div>
           </div>
-
           <div class="contact-box">
             <div class="contact-label">Connected — contact details</div>
-            {% if m["match_email"] %}
-            <div class="contact-row">
-              <span>Email</span>{{ m["match_email"] }}
-            </div>
-            {% endif %} {% if m["match_whatsapp"] %}
-            <div class="contact-row">
-              <span>WhatsApp</span>{{ m["match_whatsapp"] }}
-            </div>
+            {% set email = m.get("match_email") or m.get("student_email") %} {%
+            set phone = m.get("match_whatsapp") or m.get("student_whatsapp") %}
+            {% if email %}
+            <div class="contact-row"><span>Email</span>{{ email }}</div>
+            {% endif %} {% if phone %}
+            <div class="contact-row"><span>WhatsApp</span>{{ phone }}</div>
             {% endif %}
           </div>
         </div>
-        {% endfor %}
+        {% endfor %} {% endif %}
       </div>
 
-      <!-- INTERESTED TAB -->
+      <!-- ── INTERESTED (student only) ── -->
+      {% if user_type == "student" %}
       <div id="tab-interested" class="tab-pane">
         {% if not role_interests %}
         <div class="empty-tab">No interest requests yet.</div>
-        {% endif %} {% for i in role_interests %}
+        {% else %} {% for i in role_interests %}
         <div class="match-card">
           <div class="match-card-header">
             {% if i.get("logo_url") %}
@@ -331,24 +341,17 @@
             </div>
             {% else %}
             <div class="avatar-circle-sm">
-              {{ i["startup_name"][0].upper() if user_type == "student" else
-              i["name"][0].upper() }}
+              {{ i["startup_name"][0].upper() }}
             </div>
             {% endif %}
             <div class="match-card-meta">
-              {% if user_type == "student" %}
               <div class="name">{{ i["startup_name"] }}</div>
               <div class="sub">
                 {{ i["title"] }} &middot; {{ i["role_type"] | capitalize }}
               </div>
-              {% else %}
-              <div class="name">{{ i["name"] }}</div>
-              <div class="sub">Interested in: {{ i["title"] }}</div>
-              {% endif %}
             </div>
           </div>
-
-          {% if user_type == "student" %} {% if i["startup_accepted"] == 1 %}
+          {% if i["startup_accepted"] == 1 %}
           <div class="contact-box">
             <div class="contact-label">Startup accepted — contact details</div>
             {% if i.get("student_email") %}
@@ -373,31 +376,11 @@
             style="margin-top: 8px; display: inline-flex"
             >Waiting for startup response</span
           >
-          {% endif %} {% else %} {% if i["startup_accepted"] == 1 %}
-          <span
-            class="badge badge-green"
-            style="margin-top: 8px; display: inline-flex"
-            >Accepted</span
-          >
-          {% elif i["startup_accepted"] == 2 %}
-          <span
-            class="badge badge-gray"
-            style="margin-top: 8px; display: inline-flex"
-            >Declined</span
-          >
-          {% else %}
-          <div class="match-card-actions">
-            <form method="POST" action="/accept-interest/{{ i['id'] }}">
-              <button class="btn btn-success btn-sm">Accept</button>
-            </form>
-            <form method="POST" action="/decline-interest/{{ i['id'] }}">
-              <button class="btn btn-ghost btn-sm">Decline</button>
-            </form>
-          </div>
-          {% endif %} {% endif %}
+          {% endif %}
         </div>
-        {% endfor %}
+        {% endfor %} {% endif %}
       </div>
+      {% endif %}
     </div>
 
     <script>

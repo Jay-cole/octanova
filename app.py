@@ -389,7 +389,8 @@ def matches():
             flash("Complete your profile first.", "error")
             return redirect(url_for("startup_profile"))
 
-        all_matches = conn.execute("""
+        # Profile-to-profile matches where BOTH accepted (confirmed connections)
+        profile_matched = conn.execute("""
             SELECT m.id, m.score, m.matched_skills, m.matched_interests, m.matched_wants,
                    m.student_accepted, m.startup_accepted, m.created_at,
                    st.name, st.skills, st.interests, st.availability,
@@ -397,13 +398,35 @@ def matches():
                    st.avatar_url AS match_avatar
             FROM matches m JOIN students st ON m.student_id = st.id
             WHERE m.startup_id = %s AND m.score >= 60
+              AND m.student_accepted = 1 AND m.startup_accepted = 1
             ORDER BY m.created_at DESC
         """, (profile["id"],)).fetchall()
         conn.execute("UPDATE matches SET startup_seen=1 WHERE startup_id=%s", (profile["id"],))
         conn.commit()
 
-        # Role interests from students (I'm Interested)
-        role_interests = conn.execute("""
+        # Pending: students who explicitly accepted a role match — startup hasn't responded yet
+        # student_accepted=1 means student clicked "Accept Match"
+        # startup_accepted=0 means startup hasn't responded
+        pending_interests = conn.execute("""
+            SELECT ri.id, ri.startup_accepted, ri.student_accepted, ri.created_at,
+                   r.title, r.role_type, 'role_match' AS source,
+                   st.name, st.skills, st.email AS student_email,
+                   st.whatsapp AS student_whatsapp, st.avatar_url
+            FROM role_interests ri
+            JOIN roles r ON ri.role_id = r.id
+            JOIN students st ON ri.student_id = st.id
+            WHERE r.startup_id = %s AND ri.student_accepted = 1 AND ri.startup_accepted = 0
+            ORDER BY ri.created_at DESC
+        """, (profile["id"],)).fetchall()
+
+        # Interested: students who clicked "I'm Interested" from Browse — startup hasn't responded
+        # These are also in role_interests but we distinguish by context
+        # Actually both "Accept Match" and "I'm Interested" go to role_interests with student_accepted=1
+        # We show ALL pending (student_accepted=1, startup not yet responded) in Pending tab
+        # and ALL where startup accepted in Matched tab
+
+        # Matched via role interests (startup accepted)
+        role_matched = conn.execute("""
             SELECT ri.id, ri.startup_accepted, ri.student_accepted, ri.created_at,
                    r.title, r.role_type,
                    st.name, st.skills, st.email AS student_email,
@@ -411,25 +434,22 @@ def matches():
             FROM role_interests ri
             JOIN roles r ON ri.role_id = r.id
             JOIN students st ON ri.student_id = st.id
-            WHERE r.startup_id = %s
+            WHERE r.startup_id = %s AND ri.student_accepted = 1 AND ri.startup_accepted = 1
             ORDER BY ri.created_at DESC
         """, (profile["id"],)).fetchall()
 
         conn.close()
 
-        pending, matched = [], []
-        for m in all_matches:
-            m = dict(m)
-            if m["student_accepted"] and m["startup_accepted"]:
-                matched.append(m)
-            elif m["student_accepted"] and not m["startup_accepted"]:
-                pending.append(m)
+        pending  = [dict(r) for r in pending_interests]
+        matched  = [dict(r) for r in profile_matched] + [dict(r) for r in role_matched]
+        # role_interests tab: show declined ones so startup can see history
+        role_interests = []  # not used for startup — pending/matched covers everything
 
         return render_template("matches.html",
             user_type="startup",
             pending=pending,
             matched=matched,
-            role_interests=[dict(r) for r in role_interests]
+            role_interests=role_interests
         )
 
 
@@ -955,18 +975,18 @@ def my_roles():
 
     roles = conn.execute("""
         SELECT r.*,
-            (SELECT COUNT(*) FROM role_interests ri WHERE ri.role_id=r.id) AS interest_count
+            (SELECT COUNT(*) FROM role_interests ri WHERE ri.role_id=r.id AND ri.student_accepted=1) AS interest_count
         FROM roles r WHERE r.startup_id=%s ORDER BY r.created_at DESC
     """, (startup["id"],)).fetchall()
 
-    # For each role, get interested students
+    # For each role, get only students who explicitly accepted
     roles_with_interests = []
     for r in roles:
         r = dict(r)
         interests = conn.execute("""
             SELECT ri.*, st.name, st.skills, st.email AS student_email, st.whatsapp, st.avatar_url
             FROM role_interests ri JOIN students st ON ri.student_id=st.id
-            WHERE ri.role_id=%s
+            WHERE ri.role_id=%s AND ri.student_accepted=1
         """, (r["id"],)).fetchall()
         r["interests"] = interests
         roles_with_interests.append(r)
@@ -994,8 +1014,9 @@ def close_role(role_id):
 
     conn = get_db()
     conn.execute("DELETE FROM matches WHERE score < 60")
+    conn.execute("DELETE FROM role_interests WHERE student_accepted = 0")
     conn.close()
-    return "Cleaned up low-score matches.", 200
+    return "Cleaned up: removed low-score matches and auto-inserted role interests.", 200
 
 # Always initialize DB — runs on import, works with gunicorn and python app.py
 with app.app_context():
